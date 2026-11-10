@@ -4,7 +4,42 @@ Phần mềm điều khiển, giám sát và cấu hình các dòng bộ điều
 
 ---
 
-## 📦 Yêu cầu môi trường & Cài đặt thư viện
+## 🚀 Đóng gói & Xuất ra file `.exe` độc lập (Standalone Executable)
+
+Phần mềm đã được thiết lập sẵn file cấu hình đóng gói **`Viettel_BLDC_Controller.spec`** và script tự động **`build_exe.bat`**.
+
+Sau khi đóng gói, toàn bộ:
+* **Môi trường Python**
+* **Tất cả các thư viện** (`customtkinter`, `pyserial`, `matplotlib`, `pillow`,...)
+* **Tài nguyên** (Logo Viettel, Icon `.ico`, font chữ, themes đồ họa)
+
+sẽ được nén thành **1 file `.exe` duy nhất** nằm trong thư mục `dist\Viettel_BLDC_Controller.exe`. Bạn có thể mang file này sang bất kỳ máy tính Windows nào để chạy trực tiếp **mà không cần cài đặt Python hay bất kỳ thư viện nào**!
+
+### Các bước xuất file `.exe`:
+
+- **Cách 1 (Nhanh nhất)**: Nhấp đúp chuột vào file:
+  ```cmd
+  build_exe.bat
+  ```
+  *(Script sẽ tự động cài `pyinstaller`, các thư viện cần thiết và tiến hành đóng gói trong 1–2 phút).*
+
+- **Cách 2 (Bằng dòng lệnh)**:
+  ```bash
+  # 1. Cài đặt các thư viện đóng gói
+  pip install -r requirements.txt
+
+  # 2. Chạy lệnh đóng gói
+  pyinstaller --clean Viettel_BLDC_Controller.spec
+  ```
+
+File kết quả sau khi hoàn thành:
+```
+dist\Viettel_BLDC_Controller.exe
+```
+
+---
+
+## 📦 Yêu cầu môi trường & Cài đặt thư viện (Dành cho nhà phát triển)
 
 ### 1. Yêu cầu hệ thống:
 * **Hệ điều hành**: Windows 10 / 11 (64-bit)
@@ -21,7 +56,7 @@ pip install -r requirements.txt
 Hoặc cài đặt từng thư viện riêng lẻ:
 
 ```bash
-pip install customtkinter pyserial pillow matplotlib
+pip install customtkinter pyserial pillow matplotlib pyinstaller
 ```
 
 ### 3. Chi tiết chức năng các thư viện:
@@ -31,6 +66,7 @@ pip install customtkinter pyserial pillow matplotlib
 | **`pyserial`** | `>= 3.5` | Giao tiếp truyền thông phần cứng qua cổng COM / USB-UART với tốc độ cao (Baudrate 921600 bps, 8-N-1). |
 | **`pillow` (PIL)** | `>= 9.5.0` | Nạp và xử lý hình ảnh logo biểu tượng Viettel (`viettel_logo.png` & `viettel_logo.ico`). |
 | **`matplotlib`** | `>= 3.7.0` | Vẽ đồ thị sóng telemetry thời gian thực đa kênh (10–20Hz) và phân tích dữ liệu Datalogger BlackBox. |
+| **`pyinstaller`** | `>= 5.13.0` | Đóng gói toàn bộ code và thư viện thành file `.exe` duy nhất không cần cài đặt Python. |
 
 ---
 
@@ -102,7 +138,7 @@ Phần mềm được thiết kế với chuẩn nhận diện **Viettel Red The
 
 ---
 
-## 🛠 Khởi chạy ứng dụng
+## 🛠 Khởi chạy ứng dụng trực tiếp từ mã nguồn
 
 - **Khởi chạy từ tệp batch**:
   ```cmd

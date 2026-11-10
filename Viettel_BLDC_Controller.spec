@@ -73,3 +73,4 @@ exe = EXE(
     entitlements_file=None,
     icon='viettel_logo.ico'
 )
+

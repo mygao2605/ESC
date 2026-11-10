@@ -41,3 +41,4 @@ echo File nay da duoc dong goi kem tat ca thu vien (khong can cai Python nua).
 echo Ban co the copy file 'dist\Viettel_BLDC_Controller.exe' sang may bat ky de chay!
 echo.
 pause
+
