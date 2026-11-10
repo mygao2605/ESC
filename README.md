@@ -4,6 +4,36 @@ Phần mềm điều khiển, giám sát và cấu hình các dòng bộ điều
 
 ---
 
+## 📦 Yêu cầu môi trường & Cài đặt thư viện
+
+### 1. Yêu cầu hệ thống:
+* **Hệ điều hành**: Windows 10 / 11 (64-bit)
+* **Phiên bản Python**: Python 3.8 trở lên (Khuyến nghị Python 3.10 hoặc 3.11)
+
+### 2. Cài đặt các thư viện phụ thuộc:
+
+Mở cửa sổ dòng lệnh (**Command Prompt** hoặc **PowerShell**) tại thư mục dự án và chạy lệnh sau:
+
+```bash
+pip install -r requirements.txt
+```
+
+Hoặc cài đặt từng thư viện riêng lẻ:
+
+```bash
+pip install customtkinter pyserial pillow matplotlib
+```
+
+### 3. Chi tiết chức năng các thư viện:
+| Tên thư viện | Phiên bản khuyến nghị | Mục đích sử dụng trong phần mềm |
+| :--- | :---: | :--- |
+| **`customtkinter`** | `>= 5.2.0` | Thiết kế giao diện hiện đại chuẩn Dark Mode công nghiệp, tùy biến theo bộ nhận diện thương hiệu Đỏ Viettel (`#EE0033`). |
+| **`pyserial`** | `>= 3.5` | Giao tiếp truyền thông phần cứng qua cổng COM / USB-UART với tốc độ cao (Baudrate 921600 bps, 8-N-1). |
+| **`pillow` (PIL)** | `>= 9.5.0` | Nạp và xử lý hình ảnh logo biểu tượng Viettel (`viettel_logo.png` & `viettel_logo.ico`). |
+| **`matplotlib`** | `>= 3.7.0` | Vẽ đồ thị sóng telemetry thời gian thực đa kênh (10–20Hz) và phân tích dữ liệu Datalogger BlackBox. |
+
+---
+
 ## 📸 Phân tích bản tin từ ảnh `bantin.jpeg`
 
 Trong ảnh `bantin.jpeg`, hệ thống đang sử dụng công cụ Modbus Poll với thông số cấu hình vật lý:
@@ -82,4 +112,3 @@ Phần mềm được thiết kế với chuẩn nhận diện **Viettel Red The
   ```bash
   python main.py
   ```
-# ESC

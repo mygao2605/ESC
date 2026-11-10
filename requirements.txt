@@ -1,0 +1,8 @@
+# Danh sách thư viện cần thiết cho VIETTEL BLDC / ESC CONTROLLER
+customtkinter>=5.2.0
+pyserial>=3.5
+pillow>=9.5.0
+matplotlib>=3.7.0
+
+# Thư viện phục vụ đóng gói phần mềm thành file .exe độc lập
+pyinstaller>=5.13.0
