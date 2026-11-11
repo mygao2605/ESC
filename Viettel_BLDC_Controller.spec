@@ -22,6 +22,11 @@ datas = [
 
 binaries = ctk_binaries + mpl_binaries
 hiddenimports = [
+    'gui_esc',
+    'gui_bmu',
+    'gui_power',
+    'mgm_comm',
+    'mgm_data',
     'serial',
     'serial.tools',
     'serial.tools.list_ports',

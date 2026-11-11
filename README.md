@@ -1,6 +1,54 @@
-# VIETTEL BLDC / ESC CONTROLLER - Modbus RTU Propulsion Suite
+# VIETTEL PROPULSION SUITE - ESC / BMU / POWER CONTROLLER
 
-Phần mềm điều khiển, giám sát và cấu hình các dòng bộ điều khiển động cơ **BLDC Driver / ESC công nghiệp** do **Viettel Aerospace & Defense** phát triển, tương thích hoàn toàn giao thức chuẩn **Modbus RTU** theo đặc tả bản tin thực tế từ `bantin.jpeg` (Modbus Poll).
+Phần mềm điều khiển, giám sát và cấu hình hệ sinh thái truyền lực công nghệ cao do **Viettel Aerospace & Defense** phát triển, tương thích chuẩn giao thức **Modbus RTU** (Port 11, Baudrate 921600-8-N-1, Slave ID = 1, Scan Rate = 500ms theo đặc tả thực tế từ `bantin.jpeg`).
+
+---
+
+## 🏗️ Kiến trúc Module GUI tách rời (3 Files Độc Lập)
+
+Để thuận tiện cho việc phát triển, bảo trì và chỉnh sửa giao diện mà không ảnh hưởng lẫn nhau, giao diện phần mềm được phân tách thành **3 file GUI riêng biệt** tương ứng với 3 phân hệ cốt lõi:
+
+```
+MGM_Viettel/
+├── main.py                  # Điểm khởi chạy chính ứng dụng
+├── mgm_gui.py               # Cửa sổ chính, Header bar, quản lý kết nối & phân phối dữ liệu
+├── gui_esc.py               # [MODULE 1] Quản lý bộ điều tốc ESC & Động cơ BLDC
+├── gui_bmu.py               # [MODULE 2] Quản lý hệ thống Pin & Cân bằng Cell (BMU / BMS)
+├── gui_power.py             # [MODULE 3] Quản lý phân phối nguồn cao áp, Contactor & E-Stop (PDU)
+├── mgm_comm.py              # Lớp truyền thông Modbus RTU & Động học mô phỏng (Physics Engine)
+├── mgm_data.py              # Bộ nạp thông số thiết bị và giải mã cơ sở dữ liệu
+└── Viettel_BLDC_Controller.spec # Cấu hình đóng gói file .exe độc lập
+```
+
+### 1. Module 1: `gui_esc.py` — Quản lý ESC & Động cơ BLDC
+* **Tái hiện 2 cửa sổ Modbus Poll từ `bantin.jpeg`**:
+  * `ModbusRead.mbp` (F=03, 11 thanh ghi: `StateAct`, `SpeedRpm`, `DcBusVolt`, `D_Curr`, `Q_Curr`, `Fault_H/L`, `MotorTemp`, `TempA/B/C`).
+  * `ModbusWrite.mbp` (F=16, 2 thanh ghi: `ON/OFF`, `SpeedRpm`).
+* **Bảng điều khiển động cơ trực quan**: Nút Bật `ON=1` / Dừng `OFF=0`, thanh trượt tốc độ 0–6000 RPM, các mức đặt nhanh 500, 1000, 1500, 2000, 3000, 5000 RPM.
+* **8 khối đồng hồ điện tử số lớn**: Giám sát dòng điện $I_d, I_q$, điện áp DC Bus, tốc độ RPM, nhiệt độ động cơ và các pha.
+* **Đồ thị thời gian thực Matplotlib**: Cập nhật sóng 10–20Hz, hỗ trợ bật/tắt từng kênh đo và xuất log CSV.
+
+### 2. Module 2: `gui_bmu.py` — Quản lý Pin & BMS (Battery Management Unit)
+* **Tổng quan Pack pin**: Pack Voltage (V), Pack Current (A), State of Charge (SoC %), State of Health (SoH %), Năng lượng còn lại (Wh), Số chu kỳ sạc (Cycles).
+* **Ma trận 16 Cell pin (16S Pack)**: Thanh tiến trình điện áp từng cell, đổi màu theo dải điện áp an toàn, cờ chỉ báo cell đang xả cân bằng (`⚡ BAL`).
+* **Thống kê chênh lệch cell**: Cell Max (V), Cell Min (V), Độ lệch $\Delta V$ (mV).
+* **Cảm biến nhiệt độ**: 4 cảm biến nhiệt độ phân bố các module cell (T1..T4) + nhiệt độ bo mạch BMS.
+* **Cài đặt ngưỡng an toàn BMU**: Quá áp Cell (OV Cutoff), Tụt áp Cell (UV Cutoff), Quá nhiệt (OT Cutoff), Dòng xả tối đa, công tắc Bật/Tắt Cân bằng động (Active Cell Balancing).
+
+### 3. Module 3: `gui_power.py` — Quản lý Nguồn & Phân phối Điện (Power & PDU)
+* **Tuyến nguồn cao áp (High-Voltage DC Propulsion Bus)**:
+  * Điện áp DC Bus (V), Dòng tải tổng (A), Công suất tức thời (kW), Năng lượng tiêu thụ (kWh), Dung lượng xả (Ah).
+* **Điều khiển Contactor chính & Mạch nạp đệm (Pre-charge Relay)**:
+  * Đóng Contactor kèm quy trình nạp đệm tự động an toàn tránh phóng tia lửa điện hồ quang.
+  * Ngắt Contactor chính.
+* **Hệ thống ngắt khẩn cấp E-Stop**:
+  * Nút DỪNG KHẨN CẤP lớn màu đỏ nổi bật (ngay lập tức triệt tiêu lệnh điều khiển ga, ngắt động cơ).
+  * Nút Reset khẩn cấp đưa hệ thống về trạng thái bình thường.
+* **Quản lý 3 nhánh nguồn hạ áp phụ trợ (Auxiliary DC Rails)**:
+  * Nhánh 28VDC (Avionics / Flight Controller).
+  * Nhánh 12VDC (Payload / Video Link / Radar).
+  * Nhánh 5.2VDC (Sensors / Servos / BEC).
+* **Đo kiểm an toàn điện**: Điện trở cách điện DC Bus Insulation ($M\Omega$), phát hiện rò điện vỏ (Ground Leakage), Hiệu suất chuyển đổi PDU (%).
 
 ---
 
@@ -70,74 +118,6 @@ pip install customtkinter pyserial pillow matplotlib pyinstaller
 
 ---
 
-## 📸 Phân tích bản tin từ ảnh `bantin.jpeg`
-
-Trong ảnh `bantin.jpeg`, hệ thống đang sử dụng công cụ Modbus Poll với thông số cấu hình vật lý:
-- **Cổng truyền thông (Serial Port)**: `Port 11` (COM11)
-- **Thông số khung truyền**: `921600-8-N-1` (Baudrate 921600 bps, 8 Data bits, No Parity, 1 Stop bit)
-- **Địa chỉ Slave ID**: `ID = 1`
-- **Tốc độ quét (Scan Rate - SR)**: `500 ms`
-
-Hệ thống phân tách thành 2 bản tin đồng thời:
-
-### 1. Bản tin đọc: `ModbusRead.mbp`
-- **Mã hàm**: `F = 03` (Read Holding Registers)
-- **Địa chỉ bắt đầu**: `00000`
-- **Số lượng thanh ghi**: `11` thanh ghi 16-bit
-- **Thống kê truyền thông**: `Tx = 682 : Err = 3 : ID = 1 : F = 03 : SR = 500ms`
-- **Danh sách 11 thanh ghi**:
-  | Địa chỉ | Tên thanh ghi | Giá trị mặc định | Đơn vị | Ý nghĩa kỹ thuật |
-  | :---: | :--- | :---: | :---: | :--- |
-  | `0` | **StateAct** | `0` | - | Trạng thái thực tế (0: Dừng/Idle, 1: Chạy/Run, 2: Lỗi/Fault) |
-  | `1` | **SpeedRpm** | `0` | RPM | Tốc độ vòng quay thực tế của động cơ |
-  | `2` | **DcBusVolt** | `0` | V | Điện áp nguồn DC Bus |
-  | `3` | **D_Curr** | `9` | A | Dòng điện trục D (Id - Direct axis current) |
-  | `4` | **Q_Curr** | `-1` | A | Dòng điện trục Q (Iq - Quadrature torque current) |
-  | `5` | **Fault_H** | `0` | HEX | Thanh ghi mã lỗi Word cao (High word) |
-  | `6` | **Fault_L** | `0` | HEX | Thanh ghi mã lỗi Word thấp (Low word) |
-  | `7` | **MotorTemp** | `30` | °C | Nhiệt độ cuộn dây động cơ |
-  | `8` | **TempA** | `24` | °C | Nhiệt độ cầu công suất Pha A (MOSFET/IGBT) |
-  | `9` | **TempB** | `26` | °C | Nhiệt độ cầu công suất Pha B (MOSFET/IGBT) |
-  | `10`| **TempC** | `26` | °C | Nhiệt độ cầu công suất Pha C (MOSFET/IGBT) |
-
-### 2. Bản tin ghi: `ModbusWrite.mbp`
-- **Mã hàm**: `F = 16` (0x10 - Write Multiple Registers)
-- **Địa chỉ bắt đầu**: `00000`
-- **Số lượng thanh ghi**: `2` thanh ghi 16-bit
-- **Thống kê truyền thông**: `Tx = 406 : Err = 2 : ID = 1 : F = 16 : SR = 500ms`
-- **Danh sách 2 thanh ghi điều khiển**:
-  | Địa chỉ | Tên thanh ghi | Giá trị mặc định | Đơn vị | Ý nghĩa kỹ thuật |
-  | :---: | :--- | :---: | :---: | :--- |
-  | `0` | **ON/OFF** | `0` | 0 / 1 | Lệnh bật/tắt động cơ (0: Dừng OFF, 1: Chạy ON) |
-  | `1` | **SpeedRpm** | `0` | RPM | Lệnh đặt tốc độ mục tiêu (Target RPM) |
-
----
-
-## 🎨 Kiến trúc & Giao diện phần mềm Viettel
-
-Phần mềm được thiết kế với chuẩn nhận diện **Viettel Red Theme (`#EE0033`)**, bao gồm 7 phân hệ chính:
-
-1. **📡 Tab Bản tin Modbus (Read/Write)**:
-   - Mô phỏng trực quan 2 cửa sổ con song song: `ModbusRead.mbp` (F=03) và `ModbusWrite.mbp` (F=16).
-   - Hiển thị đầy đủ số liệu thống kê `Tx`, `Err`, `ID`, `F`, `SR` và dòng dữ liệu HEX trực tiếp kèm mã kiểm tra CRC-16.
-   - Tích hợp **Bảng điều khiển động cơ BLDC** trực quan: nút BẬT/TẮT, thanh trượt Target RPM, các nút chọn nhanh tốc độ (500, 1000, 1500, 2000, 3000, 5000 RPM) và công tắc tự động gửi chu kỳ F=16.
-2. **📊 Tab Giám sát & Đồ thị thời gian thực (Live)**:
-   - 8 khối đồng hồ điện tử số lớn tương ứng 11 thanh ghi: `StateAct`, `SpeedRpm`, `DcBusVolt`, `D_Curr`, `Q_Curr`, `Fault_H/L`, `MotorTemp`, `TempA/B/C`.
-   - Đồ thị sóng Matplotlib đa kênh thời gian thực: SpeedRpm/10, DcBusVolt, Id, Iq, Nhiệt độ động cơ và các pha.
-   - Ghi dữ liệu thực địa ra file CSV (11 kênh).
-3. **⚙️ Tab Cấu hình tham số (Device Settings)**:
-   - Đọc/ghi cấu hình, quản lý hàng trăm tham số động cơ, bảo vệ quá dòng, quá áp, nạp/xuất file JSON/INI.
-4. **📈 Tab Phân tích Datalogger (BlackBox)**:
-   - Đọc dữ liệu lịch sử chuyến bay, tính toán Peak Current, Min Voltage, Max RPM, Max Temperature.
-5. **⚠️ Tab Nhật ký sự kiện & Mã lỗi (Events & Diagnostics)**:
-   - Tự động giải mã lỗi từ cặp thanh ghi `Fault_H` và `Fault_L`.
-6. **ℹ️ Tab Thông tin phần cứng & Firmware**:
-   - Quản lý phiên bản phần cứng, Serial Number, nạp Firmware an toàn.
-7. **💻 Tab Terminal Modbus HEX**:
-   - Gửi lệnh Modbus RTU thô, tích hợp tính và nối mã CRC16 tự động.
-
----
-
 ## 🛠 Khởi chạy ứng dụng trực tiếp từ mã nguồn
 
 - **Khởi chạy từ tệp batch**:
@@ -148,3 +128,4 @@ Phần mềm được thiết kế với chuẩn nhận diện **Viettel Red The
   ```bash
   python main.py
   ```
+# POWER_ESC

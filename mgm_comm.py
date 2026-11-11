@@ -53,6 +53,61 @@ MODBUS_WRITE_REGISTERS = [
     {"index": 1, "name": "SpeedRpm", "unit": "RPM", "desc": "Lệnh đặt tốc độ mục tiêu (Target RPM)"},
 ]
 
+# =============================================================================
+# BẢNG ĐẶC TẢ THANH GHI MODBUS MODULE POWER (SLAVE ID 01, BAUDRATE 921600)
+# =============================================================================
+POWER_READ_REGISTERS = [
+    {"index": 0,  "name": "Charge_BatVolt (mV)",       "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Điện áp Pin sạc"},
+    {"index": 1,  "name": "Charge_BatChargeCurr (mA)", "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Dòng điện sạc Pin"},
+    {"index": 2,  "name": "Charge_InpVolt (mV)",       "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Điện áp ngõ vào sạc"},
+    {"index": 3,  "name": "Charge_InpCurr",            "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Dòng điện ngõ vào sạc"},
+    {"index": 4,  "name": "Buck_12V_1_Vout_1 (mV)",    "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Buck 12V_1 Áp ra 1"},
+    {"index": 5,  "name": "Buck_12V_1_Vout_2 (mV)",    "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Buck 12V_1 Áp ra 2"},
+    {"index": 6,  "name": "Buck_12V_1_Iout_1 (mA)",    "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Buck 12V_1 Dòng ra 1"},
+    {"index": 7,  "name": "Buck_12V_1_Iout_2 (mA)",    "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Buck 12V_1 Dòng ra 2"},
+    {"index": 8,  "name": "Buck_12V_1_Temp_1 (degC)",  "unit": "°C",   "scale": 1.0,   "scale_unit": "°C", "desc": "Buck 12V_1 Nhiệt độ 1"},
+    {"index": 9,  "name": "Buck_12V_1_Temp_2 (degC)",  "unit": "°C",   "scale": 1.0,   "scale_unit": "°C", "desc": "Buck 12V_1 Nhiệt độ 2"},
+    {"index": 10, "name": "Buck_12V_2_Vout_1 (mV)",    "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Buck 12V_2 Áp ra 1"},
+    {"index": 11, "name": "Buck_12V_2_Vout_2 (mV)",    "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Buck 12V_2 Áp ra 2"},
+    {"index": 12, "name": "Buck_12V_2_Iout_1 (mA)",    "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Buck 12V_2 Dòng ra 1"},
+    {"index": 13, "name": "Buck_12V_2_Iout_2 (mA)",    "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Buck 12V_2 Dòng ra 2"},
+    {"index": 14, "name": "Buck_12V_2_Temp_1 (degC)",  "unit": "°C",   "scale": 1.0,   "scale_unit": "°C", "desc": "Buck 12V_2 Nhiệt độ 1"},
+    {"index": 15, "name": "Buck_12V_2_Temp_2 (degC)",  "unit": "°C",   "scale": 1.0,   "scale_unit": "°C", "desc": "Buck 12V_2 Nhiệt độ 2"},
+    {"index": 16, "name": "Buck_5V_1_Vout_1 (mV)",     "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Buck 5V_1 Áp ra 1"},
+    {"index": 17, "name": "Buck_5V_1_Vout_2 (mV)",     "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Buck 5V_1 Áp ra 2"},
+    {"index": 18, "name": "Buck_5V_1_Iout_1 (mA)",     "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Buck 5V_1 Dòng ra 1"},
+    {"index": 19, "name": "Buck_5V_1_Iout_2 (mA)",     "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Buck 5V_1 Dòng ra 2"},
+    {"index": 20, "name": "Buck_5V_1_Temp_1 (degC)",   "unit": "°C",   "scale": 1.0,   "scale_unit": "°C", "desc": "Buck 5V_1 Nhiệt độ 1"},
+    {"index": 21, "name": "Buck_5V_1_Temp_2 (degC)",   "unit": "°C",   "scale": 1.0,   "scale_unit": "°C", "desc": "Buck 5V_1 Nhiệt độ 2"},
+    {"index": 22, "name": "Buck_5V_2_Vout_1 (mV)",     "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Buck 5V_2 Áp ra 1"},
+    {"index": 23, "name": "Buck_5V_2_Vout_2 (mV)",     "unit": "mV",   "scale": 0.001, "scale_unit": "V",  "desc": "Buck 5V_2 Áp ra 2"},
+    {"index": 24, "name": "Buck_5V_2_Iout_1 (mA)",     "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Buck 5V_2 Dòng ra 1"},
+    {"index": 25, "name": "Buck_5V_2_Iout_2 (mA)",     "unit": "mA",   "scale": 0.001, "scale_unit": "A",  "desc": "Buck 5V_2 Dòng ra 2"},
+    {"index": 26, "name": "Buck_5V_2_Temp_1 (degC)",   "unit": "°C",   "scale": 1.0,   "scale_unit": "°C", "desc": "Buck 5V_2 Nhiệt độ 1"},
+    {"index": 27, "name": "Buck_5V_2_Temp_2 (degC)",   "unit": "°C",   "scale": 1.0,   "scale_unit": "°C", "desc": "Buck 5V_2 Nhiệt độ 2"},
+    {"index": 28, "name": "Error code (master)",       "unit": "HEX",  "scale": 1,     "scale_unit": "HEX", "desc": "Mã lỗi Master"},
+    {"index": 29, "name": "Vbus x 100",                "unit": "V*100","scale": 0.01,  "scale_unit": "V",  "desc": "Điện áp DC Bus tổng"},
+    {"index": 30, "name": "Vout_master x 100",         "unit": "V*100","scale": 0.01,  "scale_unit": "V",  "desc": "Điện áp ra Master"},
+    {"index": 31, "name": "Iout_master x 100",         "unit": "A*100","scale": 0.01,  "scale_unit": "A",  "desc": "Dòng điện ra Master"},
+    {"index": 32, "name": "Vout_slave x 100",          "unit": "V*100","scale": 0.01,  "scale_unit": "V",  "desc": "Điện áp ra Slave"},
+    {"index": 33, "name": "I_out_slave x 100",         "unit": "A*100","scale": 0.01,  "scale_unit": "A",  "desc": "Dòng điện ra Slave"},
+    {"index": 34, "name": "Error code (slave)",        "unit": "HEX",  "scale": 1,     "scale_unit": "HEX", "desc": "Mã lỗi Slave"},
+    {"index": 35, "name": "Fanspeed (slave)",          "unit": "RPM",  "scale": 1,     "scale_unit": "RPM", "desc": "Tốc độ quạt Slave"},
+]
+
+POWER_WRITE_REGISTERS = [
+    {"index": 0, "name": "State",        "unit": "0/1", "desc": "Trạng thái Bật/Tắt nguồn (0: TẮT, 1: BẬT)"},
+    {"index": 1, "name": "Protect Time", "unit": "ms",  "desc": "Thời gian bảo vệ ngắt"},
+    {"index": 2, "name": "RampMax",      "unit": "",    "desc": "Tốc độ tăng dốc tối đa"},
+    {"index": 3, "name": "RampDec",      "unit": "",    "desc": "Tốc độ giảm dốc"},
+    {"index": 4, "name": "V_in(mV)",     "unit": "mV",  "desc": "Điện áp ngõ vào"},
+    {"index": 5, "name": "V_out(mV)",    "unit": "mV",  "desc": "Điện áp ngõ ra đặt"},
+    {"index": 6, "name": "I_out(mV)",    "unit": "mV",  "desc": "Dòng điện ngõ ra đặt"},
+    {"index": 7, "name": "ErrorCode",    "unit": "HEX", "desc": "Mã lỗi điều khiển"},
+    {"index": 8, "name": "FanSpeed",     "unit": "RPM", "desc": "Tốc độ quạt làm mát"},
+    {"index": 9, "name": "DeadTime",     "unit": "ns",  "desc": "Thời gian chết MOSFET"},
+]
+
 
 # =============================================================================
 # HÀM TIỆN ÍCH MODBUS RTU (CRC16 & FRAME BUILDER / PARSER)
@@ -103,7 +158,7 @@ def build_fc03_request(slave_id: int = 1, start_addr: int = 0, count: int = 11) 
 
 
 def parse_fc03_response(frame: bytes, expected_slave: int = 1, expected_count: int = 11) -> Optional[List[int]]:
-    """Giải mã khung phản hồi Function 03 thành danh sách các thanh ghi int16 có dấu"""
+    """Giải mã khung phản hồi Function 03 (hoặc Function 04) thành danh sách các thanh ghi int16 có dấu"""
     expected_len = 5 + expected_count * 2
     if len(frame) < expected_len:
         return None
@@ -111,7 +166,7 @@ def parse_fc03_response(frame: bytes, expected_slave: int = 1, expected_count: i
     if not verify_crc16(frame):
         return None
     slave_id, func_code, byte_count = frame[0], frame[1], frame[2]
-    if slave_id != expected_slave or func_code != 0x03 or byte_count != expected_count * 2:
+    if slave_id != expected_slave or func_code not in (0x03, 0x04) or byte_count != expected_count * 2:
         return None
     regs = []
     for i in range(expected_count):
@@ -210,6 +265,44 @@ class MGMSimulator:
         self.consumed_ah: float = 0.0
         self.consumed_wh: float = 0.0
 
+        # Thông số BMU (Battery Management Unit - 16S LiPo/Li-Ion Pack)
+        self.bmu_cell_count = 16
+        self.bmu_cells = [round(3.820 + ((i * 7) % 5) * 0.004 - 0.008, 3) for i in range(16)]
+        self.bmu_soc = 86.5   # %
+        self.bmu_soh = 99.0   # %
+        self.bmu_balancing_active = True
+        self.bmu_balancing_cells = [2, 7, 11]
+        self.bmu_temps = [28.4, 29.1, 28.7, 29.5]
+        self.bmu_board_temp = 31.2
+        self.bmu_cycle_count = 42
+        self.bmu_ov_limit = 4.25
+        self.bmu_uv_limit = 3.00
+        self.bmu_ot_limit = 65.0
+        self.bmu_max_discharge_a = 220.0
+
+        # Thông số Power / PDU (Power Distribution Unit)
+        self.pwr_main_contactor = 1     # 1: CLOSED, 0: OPEN
+        self.pwr_precharge_done = 1     # 1: READY / DONE, 0: OFF / CHARGING
+        self.pwr_estop_tripped = 0      # 0: NORMAL, 1: TRIPPED
+        self.pwr_rail_28v_en = True
+        self.pwr_rail_28v_v = 28.08
+        self.pwr_rail_28v_i = 2.45
+        self.pwr_rail_12v_en = True
+        self.pwr_rail_12v_v = 12.04
+        self.pwr_rail_12v_i = 3.12
+        self.pwr_rail_5v_en = True
+        self.pwr_rail_5v_v = 5.18
+        self.pwr_rail_5v_i = 1.65
+        self.pwr_insulation_mohm = 14.8
+        self.pwr_efficiency = 96.5
+
+        # 10 Thanh ghi điều khiển Module Power (Address 0..9)
+        # 0: State (0: OFF, 1: ON), 1: Protect Time, 2: RampMax, 3: RampDec, 4: V_in(mV), 5: V_out(mV), 6: I_out(mV), 7: ErrorCode, 8: FanSpeed, 9: DeadTime
+        self.pwr_ctrl_regs: List[int] = [1, 100, 50, 50, 48000, 48000, 20000, 0, 2400, 150]
+
+        # 36 Thanh ghi giám sát Module Power (Address 0..35)
+        self.pwr_read_regs: List[int] = [0] * 36
+
         # Bảng tham số cấu hình lưu trữ
         self.stored_params: Dict[int, Any] = {
             1: "memory bank 1",
@@ -291,6 +384,9 @@ class MGMSimulator:
                 self.reg_d_curr = 9
                 self.reg_q_curr = -1
 
+            # Dòng tổng hợp khi dừng/không tải
+            i_total = math.hypot(self.reg_d_curr, self.reg_q_curr)
+
             # Nhiệt độ hồi dần về mức nền trong ảnh (30, 24, 26, 26)
             self._motor_temp_f += (30.0 - self._motor_temp_f) * 0.08 * dt
             self._temp_a_f += (24.0 - self._temp_a_f) * 0.08 * dt
@@ -337,6 +433,100 @@ class MGMSimulator:
         self.reg_temp_b = int(round(self._temp_b_f))
         self.reg_temp_c = int(round(self._temp_c_f))
 
+        # Cập nhật 36 thanh ghi Module Power theo thanh ghi State (Address 0: 1 or 0)
+        pwr_state = self.pwr_ctrl_regs[0]
+        if pwr_state == 1:
+            bat_v = 48250 + random.randint(-40, 40)
+            chg_i = 1500 + random.randint(-15, 15)
+            inp_v = 54000 + random.randint(-30, 30)
+            inp_i = 1850 + random.randint(-10, 10)
+            # Buck 12V_1 (4..9)
+            b12_1_v1 = 12050 + random.randint(-10, 10)
+            b12_1_v2 = 12040 + random.randint(-10, 10)
+            b12_1_i1 = 2450 + random.randint(-20, 20)
+            b12_1_i2 = 1850 + random.randint(-15, 15)
+            b12_1_t1 = 32 + random.randint(0, 1)
+            b12_1_t2 = 33 + random.randint(0, 1)
+            # Buck 12V_2 (10..15)
+            b12_2_v1 = 12030 + random.randint(-10, 10)
+            b12_2_v2 = 12020 + random.randint(-10, 10)
+            b12_2_i1 = 1950 + random.randint(-20, 20)
+            b12_2_i2 = 1750 + random.randint(-15, 15)
+            b12_2_t1 = 31 + random.randint(0, 1)
+            b12_2_t2 = 32 + random.randint(0, 1)
+            # Buck 5V_1 (16..21)
+            b5_1_v1 = 5180 + random.randint(-5, 5)
+            b5_1_v2 = 5175 + random.randint(-5, 5)
+            b5_1_i1 = 1650 + random.randint(-15, 15)
+            b5_1_i2 = 1200 + random.randint(-10, 10)
+            b5_1_t1 = 29
+            b5_1_t2 = 30
+            # Buck 5V_2 (22..27)
+            b5_2_v1 = 5190 + random.randint(-5, 5)
+            b5_2_v2 = 5185 + random.randint(-5, 5)
+            b5_2_i1 = 1450 + random.randint(-15, 15)
+            b5_2_i2 = 1100 + random.randint(-10, 10)
+            b5_2_t1 = 28
+            b5_2_t2 = 29
+            # Master/Slave (28..35)
+            err_m = 0
+            vbus_100 = 4800 + random.randint(-5, 5)
+            vout_m_100 = 4790 + random.randint(-5, 5)
+            iout_base = 1.5 + (i_total * 0.95 if self.cmd_on_off == 1 else 0.0)
+            iout_m_100 = int(round(iout_base * 100))
+            vout_s_100 = 4785 + random.randint(-5, 5)
+            iout_s_100 = int(round((iout_base * 0.9) * 100))
+            err_s = 0
+            fan_s = self.pwr_ctrl_regs[8] if self.pwr_ctrl_regs[8] > 0 else 2400
+
+            # Cập nhật 10 thanh ghi Phase-Shift trong mô phỏng khi State = 1
+            self.pwr_ctrl_regs[1] = 5000
+            self.pwr_ctrl_regs[2] = 100
+            self.pwr_ctrl_regs[3] = 100
+            self.pwr_ctrl_regs[4] = 48000 + random.randint(-30, 30)
+            self.pwr_ctrl_regs[5] = 47900 + random.randint(-30, 30)
+            self.pwr_ctrl_regs[6] = 15200 + random.randint(-50, 50)
+            self.pwr_ctrl_regs[7] = 0
+            self.pwr_ctrl_regs[8] = 2400 + random.randint(-15, 15)
+            self.pwr_ctrl_regs[9] = 150
+        else:
+            bat_v = 48000
+            chg_i = 0
+            inp_v = 0
+            inp_i = 0
+            b12_1_v1, b12_1_v2, b12_1_i1, b12_1_i2, b12_1_t1, b12_1_t2 = 0, 0, 0, 0, 26, 26
+            b12_2_v1, b12_2_v2, b12_2_i1, b12_2_i2, b12_2_t1, b12_2_t2 = 0, 0, 0, 0, 26, 26
+            b5_1_v1, b5_1_v2, b5_1_i1, b5_1_i2, b5_1_t1, b5_1_t2 = 0, 0, 0, 0, 25, 25
+            b5_2_v1, b5_2_v2, b5_2_i1, b5_2_i2, b5_2_t1, b5_2_t2 = 0, 0, 0, 0, 25, 25
+            err_m = 0
+            vbus_100 = 0
+            vout_m_100 = 0
+            iout_m_100 = 0
+            vout_s_100 = 0
+            iout_s_100 = 0
+            err_s = 0
+            fan_s = 0
+
+            # Cập nhật 10 thanh ghi Phase-Shift trong mô phỏng khi State = 0
+            self.pwr_ctrl_regs[1] = 5000
+            self.pwr_ctrl_regs[2] = 100
+            self.pwr_ctrl_regs[3] = 100
+            self.pwr_ctrl_regs[4] = 48000
+            self.pwr_ctrl_regs[5] = 0
+            self.pwr_ctrl_regs[6] = 0
+            self.pwr_ctrl_regs[7] = 0
+            self.pwr_ctrl_regs[8] = 0
+            self.pwr_ctrl_regs[9] = 150
+
+        self.pwr_read_regs = [
+            bat_v, chg_i, inp_v, inp_i,
+            b12_1_v1, b12_1_v2, b12_1_i1, b12_1_i2, b12_1_t1, b12_1_t2,
+            b12_2_v1, b12_2_v2, b12_2_i1, b12_2_i2, b12_2_t1, b12_2_t2,
+            b5_1_v1, b5_1_v2, b5_1_i1, b5_1_i2, b5_1_t1, b5_1_t2,
+            b5_2_v1, b5_2_v2, b5_2_i1, b5_2_i2, b5_2_t1, b5_2_t2,
+            err_m, vbus_100, vout_m_100, iout_m_100, vout_s_100, iout_s_100, err_s, fan_s
+        ]
+
     def get_read_registers_list(self) -> List[int]:
         """Trả về mảng 11 thanh ghi đọc (0..10)"""
         self.update_physics()
@@ -367,7 +557,13 @@ class MGMSimulator:
             return None
         if fcode == 0x03:
             start_addr, count = struct.unpack(">HH", req[2:6])
-            regs = self.get_read_registers_list()
+            self.update_physics()
+            if count >= 30:
+                regs = self.pwr_read_regs
+            elif count == 10:
+                regs = self.pwr_ctrl_regs
+            else:
+                regs = self.get_read_registers_list()
             out_regs = []
             for i in range(count):
                 idx = start_addr + i
@@ -386,6 +582,11 @@ class MGMSimulator:
                     self.set_write_registers(vals[0], vals[1])
                 elif start_addr == 0 and len(vals) == 1:
                     self.set_write_registers(vals[0], self.cmd_speed_rpm)
+                # Cập nhật các thanh ghi Power điều khiển
+                for i, v in enumerate(vals):
+                    p_idx = start_addr + i
+                    if 0 <= p_idx < len(self.pwr_ctrl_regs):
+                        self.pwr_ctrl_regs[p_idx] = v
                 pdu = struct.pack(">BBHH", sid, 0x10, start_addr, count)
                 return append_crc16(pdu)
         return None
@@ -430,10 +631,16 @@ class MGMConnection:
         self.device_id = 10
         self.device_name = "Viettel BLDC Driver (Modbus RTU)"
 
+        # Tab đang kích hoạt: "ESC", "BMU", "POWER"
+        self.active_tab: str = "ESC"
+        self.hardware_pwr_read_regs: List[int] = [0] * 36
+        self.hardware_pwr_ctrl_regs: List[int] = [0] * 10
+
         self._poll_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._serial_lock = threading.Lock()
         self._pending_write: Optional[Tuple[int, int]] = None
+        self._pending_power_write: Optional[Tuple[int, List[int]]] = None
 
         # Callbacks
         self.on_telemetry_callback: Optional[Callable[[Dict[str, Any]], None]] = None
@@ -519,6 +726,34 @@ class MGMConnection:
         if self.on_status_change:
             self.on_status_change(False, "Chưa kết nối (Disconnected)")
 
+    def set_active_tab(self, tab: str):
+        """Chuyển đổi cấu hình đọc Modbus theo tab đang xem (ESC hoặc POWER)"""
+        tab_upper = tab.upper()
+        self.active_tab = "POWER" if "POWER" in tab_upper else ("BMU" if "BMU" in tab_upper else "ESC")
+        if self.active_tab == "POWER":
+            # Mặc định đọc 10 thanh ghi Phase-Shift (0..9) theo yêu cầu, hoặc 36 thanh ghi
+            if not hasattr(self, 'power_read_count') or self.power_read_count not in (10, 36):
+                self.power_read_count = 10
+            self.read_count = self.power_read_count
+            self.read_start_addr = 0
+            self.write_count = 1
+            self.write_start_addr = 0
+            self.log(f"Đã chuyển cấu hình Modbus sang Module POWER (Read {self.read_count} Regs, Set State Addr 0)", "INFO")
+        elif self.active_tab == "ESC":
+            self.read_count = 11
+            self.read_start_addr = 0
+            self.write_count = 2
+            self.write_start_addr = 0
+            self.log("Đã chuyển cấu hình Modbus sang Module ESC (Read 11 Regs, Write 2 Regs)", "INFO")
+
+    def set_power_read_count(self, count: int):
+        """Thay đổi số lượng thanh ghi đọc cho module Power (10 thanh ghi Phase-Shift hoặc 36 thanh ghi Nguồn)"""
+        self.power_read_count = 10 if count <= 10 else 36
+        if self.active_tab == "POWER":
+            self.read_count = self.power_read_count
+            self.read_start_addr = 0
+            self.log(f"POWER: Đã chuyển sang chế độ đọc {self.read_count} thanh ghi từ Addr #0", "INFO")
+
     def write_control_command(self, on_off: int, speed_rpm: int, immediate: bool = True) -> bool:
         """
         Ghi bản tin điều khiển Modbus Write (F=16):
@@ -545,18 +780,24 @@ class MGMConnection:
         while not self._stop_event.is_set():
             cycle_start = time.time()
             try:
-                # 1. Nếu có lệnh ghi tức thời hoặc chế độ Cyclic Write (F=16) đang bật
-                if self._pending_write is not None:
+                # 1. Nếu có lệnh ghi Power tức thời (F=16)
+                if self._pending_power_write is not None:
+                    p_addr, p_vals = self._pending_power_write
+                    self._pending_power_write = None
+                    self._execute_power_fc16_write(p_addr, p_vals)
+
+                # 2. Nếu có lệnh ghi ESC tức thời hoặc chế độ Cyclic Write (F=16) đang bật
+                elif self._pending_write is not None:
                     on_v, rpm_v = self._pending_write
                     self._pending_write = None
                     self._execute_fc16_write(on_v, rpm_v)
-                elif self.cyclic_write_enabled:
+                elif self.cyclic_write_enabled and self.active_tab != "POWER":
                     self._execute_fc16_write(self.current_write_regs[0], self.current_write_regs[1])
 
-                # 2. Thực hiện đọc 11 thanh ghi bằng Function 03 (Read Holding Registers)
+                # 3. Thực hiện đọc thanh ghi bằng Function 03 (Read Holding Registers)
                 self._execute_fc03_read()
 
-                # 3. Đóng gói snapshot gửi lên GUI
+                # 4. Đóng gói snapshot gửi lên GUI
                 snapshot = self._build_snapshot()
                 if self.on_telemetry_callback:
                     self.on_telemetry_callback(snapshot)
@@ -567,7 +808,7 @@ class MGMConnection:
             # Ngủ đúng theo Scan Rate (SR), nhưng kiểm tra nhanh nếu có lệnh ghi tức thời
             sr_sec = max(0.05, self.scan_rate_ms / 1000.0)
             while (time.time() - cycle_start) < sr_sec and not self._stop_event.is_set():
-                if self._pending_write is not None:
+                if self._pending_write is not None or self._pending_power_write is not None:
                     break
                 time.sleep(0.02)
 
@@ -602,6 +843,15 @@ class MGMConnection:
                 regs = parse_fc03_response(resp, self.slave_id, self.read_count)
                 if regs is not None:
                     self.current_read_regs = regs
+                    if self.active_tab == "POWER":
+                        if len(regs) == 10:
+                            self.hardware_pwr_ctrl_regs = list(regs)
+                            self.hardware_pwr_read_regs = list(regs) + [0] * 26
+                        elif len(regs) >= 36:
+                            self.hardware_pwr_read_regs = list(regs[:36])
+                            self.hardware_pwr_ctrl_regs = list(regs[:10])
+                        else:
+                            self.hardware_pwr_read_regs = list(regs)
                     return True
                 else:
                     self.read_err_count += 1
@@ -644,6 +894,43 @@ class MGMConnection:
                 self.write_err_count += 1
                 return False
 
+    def _execute_power_fc16_write(self, addr: int, vals: List[int]) -> bool:
+        """Gửi yêu cầu F=16 (0x10) ghi các thanh ghi điều khiển Power Module (an toàn thread-safe)"""
+        req = build_fc16_request(self.slave_id, addr, vals)
+        self.write_tx_count += 1
+        self.last_write_tx_hex = req.hex(" ").upper()
+
+        if self.is_simulator:
+            resp = self.simulator.handle_raw_modbus(req, slave_id=self.slave_id)
+            if resp:
+                self.last_write_rx_hex = resp.hex(" ").upper()
+                if parse_fc16_response(resp, self.slave_id, addr, len(vals)):
+                    return True
+            self.write_err_count += 1
+            return False
+
+        with self._serial_lock:
+            if not self.serial_port or not self.serial_port.is_open:
+                self.write_err_count += 1
+                return False
+            try:
+                self.serial_port.reset_input_buffer()
+                self.serial_port.write(req)
+                resp = self.serial_port.read(8)
+                if resp:
+                    self.last_write_rx_hex = resp.hex(" ").upper()
+                if parse_fc16_response(resp, self.slave_id, addr, len(vals)):
+                    self.log(f"POWER: Gửi thành công Modbus F=16 ghi {len(vals)} thanh ghi từ Addr #{addr}", "SUCCESS")
+                    return True
+                else:
+                    self.write_err_count += 1
+                    self.log(f"POWER: Modbus Slave không phản hồi hoặc phản hồi lỗi F=16", "WARNING")
+                    return False
+            except Exception as e:
+                self.write_err_count += 1
+                self.log(f"POWER: Lỗi ngoại lệ khi ghi Modbus F=16: {e}", "ERROR")
+                return False
+
     def _build_snapshot(self) -> Dict[str, Any]:
         """Tổng hợp dữ liệu từ 11 thanh ghi Read và 2 thanh ghi Write"""
         r = self.current_read_regs
@@ -666,6 +953,19 @@ class MGMConnection:
         i_total = round(math.hypot(d_curr, q_curr), 2)
         power_w = round(dc_bus_volt * abs(q_curr), 1)
         fault_code_32 = ((fault_h & 0xFFFF) << 16) | (fault_l & 0xFFFF)
+
+        # Tính toán các chỉ số BMU (Battery Management Unit)
+        cells = list(self.simulator.bmu_cells)
+        min_v = min(cells)
+        max_v = max(cells)
+        delta_mv = round((max_v - min_v) * 1000.0, 1)
+        min_cell_idx = cells.index(min_v) + 1
+        max_cell_idx = cells.index(max_v) + 1
+        pack_v = round(sum(cells), 2)
+        pack_current = round(i_total + (2.5 if self.simulator.pwr_rail_28v_en else 0) + (1.2 if self.simulator.pwr_rail_12v_en else 0), 2)
+
+        pwr_kw = round((dc_bus_volt * i_total) / 1000.0, 2)
+        pwr_kwh = round(self.simulator.consumed_wh / 1000.0, 3)
 
         return {
             "time_ms": int(time.time() * 1000) % 1000000,
@@ -697,7 +997,7 @@ class MGMConnection:
             "last_read_rx_hex": self.last_read_rx_hex,
             "last_write_tx_hex": self.last_write_tx_hex,
             "last_write_rx_hex": self.last_write_rx_hex,
-            # Các trường tương thích với Dashboard & Đồ thị
+            # Các trường tương thích với Dashboard & Đồ thị ESC
             "voltage": float(dc_bus_volt),
             "current": float(q_curr),
             "current_total": i_total,
@@ -711,7 +1011,116 @@ class MGMConnection:
             "fault_code_32": fault_code_32,
             "flag_low_voltage": False,
             "flag_overtemp": (motor_temp > 85 or max_phase_temp > 85),
+
+            # DỮ LIỆU BMU (BATTERY MANAGEMENT UNIT)
+            "bmu_cells": cells,
+            "bmu_cell_min": min_v,
+            "bmu_cell_max": max_v,
+            "bmu_cell_delta_mv": delta_mv,
+            "bmu_cell_min_idx": min_cell_idx,
+            "bmu_cell_max_idx": max_cell_idx,
+            "bmu_pack_voltage": pack_v,
+            "bmu_pack_current": pack_current,
+            "bmu_soc": round(self.simulator.bmu_soc, 1),
+            "bmu_soh": round(self.simulator.bmu_soh, 1),
+            "bmu_balancing_active": self.simulator.bmu_balancing_active,
+            "bmu_balancing_cells": list(self.simulator.bmu_balancing_cells),
+            "bmu_temps": list(self.simulator.bmu_temps),
+            "bmu_board_temp": round(self.simulator.bmu_board_temp, 1),
+            "bmu_cycle_count": self.simulator.bmu_cycle_count,
+            "bmu_ov_limit": self.simulator.bmu_ov_limit,
+            "bmu_uv_limit": self.simulator.bmu_uv_limit,
+            "bmu_ot_limit": self.simulator.bmu_ot_limit,
+            "bmu_max_discharge_a": self.simulator.bmu_max_discharge_a,
+
+            # DỮ LIỆU POWER (POWER DISTRIBUTION UNIT)
+            "pwr_main_contactor": self.simulator.pwr_main_contactor,
+            "pwr_precharge_done": self.simulator.pwr_precharge_done,
+            "pwr_estop_tripped": self.simulator.pwr_estop_tripped,
+            "pwr_rail_28v_en": self.simulator.pwr_rail_28v_en,
+            "pwr_rail_28v_v": self.simulator.pwr_rail_28v_v,
+            "pwr_rail_28v_i": self.simulator.pwr_rail_28v_i,
+            "pwr_rail_12v_en": self.simulator.pwr_rail_12v_en,
+            "pwr_rail_12v_v": self.simulator.pwr_rail_12v_v,
+            "pwr_rail_12v_i": self.simulator.pwr_rail_12v_i,
+            "pwr_rail_5v_en": self.simulator.pwr_rail_5v_en,
+            "pwr_rail_5v_v": self.simulator.pwr_rail_5v_v,
+            "pwr_rail_5v_i": self.simulator.pwr_rail_5v_i,
+            "pwr_insulation_mohm": self.simulator.pwr_insulation_mohm,
+            "pwr_efficiency": self.simulator.pwr_efficiency,
+            "pwr_total_kw": pwr_kw,
+            "pwr_total_kwh": pwr_kwh,
+
+            # BẢNG DỮ LIỆU ĐẶC TẢ MODBUS POWER (36 READ REGS + 10 CTRL REGS)
+            "pwr_state": self.hardware_pwr_ctrl_regs[0] if not self.is_simulator else self.simulator.pwr_ctrl_regs[0],
+            "pwr_ctrl_regs": list(self.hardware_pwr_ctrl_regs) if not self.is_simulator else list(self.simulator.pwr_ctrl_regs),
+            "pwr_read_regs": list(self.hardware_pwr_read_regs) if not self.is_simulator else list(self.simulator.pwr_read_regs),
         }
+
+    def set_power_state(self, state: int):
+        """Đặt trạng thái nguồn Power Module: State = 1 (BẬT) hoặc State = 0 (TẮT)"""
+        s = 1 if int(state) != 0 else 0
+        self.simulator.pwr_ctrl_regs[0] = s
+        state_str = "BẬT (STATE = 1)" if s == 1 else "TẮT (STATE = 0)"
+        self.log(f"POWER: Đặt lệnh {state_str} (Modbus F=16 -> Addr 0)", "SUCCESS" if s == 1 else "INFO")
+        # Đưa vào hàng đợi ghi Modbus tức thời (Addr 0, Value [s])
+        self._pending_power_write = (0, [s])
+
+    def write_power_ctrl_register(self, addr: int, val: int):
+        """Ghi một thanh ghi điều khiển Module Power (Address 0..9)"""
+        clean_val = int(val)
+        if 0 <= addr < len(self.simulator.pwr_ctrl_regs):
+            self.simulator.pwr_ctrl_regs[addr] = clean_val
+            name = POWER_WRITE_REGISTERS[addr]["name"] if addr < len(POWER_WRITE_REGISTERS) else f"Reg#{addr}"
+            self.log(f"POWER: Đặt ghi thanh ghi #{addr} ({name}) = {clean_val}", "INFO")
+        self._pending_power_write = (addr, [clean_val])
+
+    def write_power_all_ctrl_registers(self, values: List[int]):
+        """Ghi đồng loạt các thanh ghi điều khiển Module Power (F=16)"""
+        clean_vals = [int(v) for v in values[:10]]
+        for i, v in enumerate(clean_vals):
+            if i < len(self.simulator.pwr_ctrl_regs):
+                self.simulator.pwr_ctrl_regs[i] = v
+        self.log(f"POWER: Đặt ghi {len(clean_vals)} thanh ghi điều khiển xuống Modbus (F=16 Addr 0)", "INFO")
+        self._pending_power_write = (0, clean_vals)
+
+    def set_bmu_balancing(self, active: bool):
+        """Bật/tắt chế độ cân bằng cell BMU"""
+        self.simulator.bmu_balancing_active = bool(active)
+        self.log(f"BMU: Đã {'bật' if active else 'tắt'} chế độ cân bằng tự động (Auto Balancing)", "INFO")
+
+    def set_bmu_protection_limits(self, ov: float, uv: float, ot: float, max_cur: float):
+        """Cài đặt ngưỡng bảo vệ BMU"""
+        self.simulator.bmu_ov_limit = float(ov)
+        self.simulator.bmu_uv_limit = float(uv)
+        self.simulator.bmu_ot_limit = float(ot)
+        self.simulator.bmu_max_discharge_a = float(max_cur)
+        self.log(f"BMU: Cập nhật ngưỡng bảo vệ: OV={ov}V, UV={uv}V, OT={ot}°C, MaxI={max_cur}A", "SUCCESS")
+
+    def set_main_contactor(self, closed: bool):
+        """Đóng hoặc ngắt Contactor nguồn cao áp chính"""
+        self.simulator.pwr_main_contactor = 1 if closed else 0
+        state = "ĐÓNG (CLOSED)" if closed else "NGẮT (OPEN)"
+        self.log(f"POWER: Contactor chính đã chuyển sang trạng thái: {state}", "INFO")
+
+    def set_estop(self, tripped: bool):
+        """Kích hoạt hoặc giải tỏa nút dừng khẩn cấp E-Stop"""
+        self.simulator.pwr_estop_tripped = 1 if tripped else 0
+        if tripped:
+            self.write_control_command(0, 0, immediate=True)
+            self.log("POWER: [NGUY CẤP] Nút E-Stop đã KÍCH HOẠT! Động cơ bị ngắt khẩn cấp!", "WARNING")
+        else:
+            self.log("POWER: E-Stop đã được RESET về trạng thái BÌNH THƯỜNG", "SUCCESS")
+
+    def toggle_power_rail(self, rail_name: str, state: bool):
+        """Bật/tắt các nhánh nguồn hạ áp phụ trợ"""
+        if rail_name == "28V":
+            self.simulator.pwr_rail_28v_en = bool(state)
+        elif rail_name == "12V":
+            self.simulator.pwr_rail_12v_en = bool(state)
+        elif rail_name == "5V":
+            self.simulator.pwr_rail_5v_en = bool(state)
+        self.log(f"POWER: Nhánh nguồn {rail_name} đã {'BẬT' if state else 'TẮT'}", "INFO")
 
     def send_raw_frame(self, raw_bytes: bytes) -> Optional[bytes]:
         """Gửi chuỗi byte thô từ tab Terminal và nhận phản hồi"""
