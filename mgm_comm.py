@@ -799,7 +799,7 @@ class MGMConnection:
             self.write_count = 4
             self.write_start_addr = 0
             self.log("Đã chuyển cấu hình Modbus sang Module MLD (Read 7 Regs, Write 4 Regs)", "INFO")
-        elif "POWER" in tab_upper:
+        elif any(k in tab_upper for k in ("POWER", "NGUỒN", "PDU")):
             self.active_tab = "POWER"
             # Mặc định đọc 10 thanh ghi Phase-Shift (0..9) theo yêu cầu, hoặc 36 thanh ghi
             if not hasattr(self, 'power_read_count') or self.power_read_count not in (10, 36):
@@ -977,18 +977,25 @@ class MGMConnection:
                 resp = self.serial_port.read(expected_len)
                 if resp:
                     self.last_read_rx_hex = resp.hex(" ").upper()
+                    if len(resp) >= 3 and (resp[1] & 0x80):
+                        exc_code = resp[2]
+                        exc_names = {1: "Illegal Function", 2: "Illegal Data Address", 3: "Illegal Data Value", 4: "Slave Device Failure"}
+                        exc_str = exc_names.get(exc_code, f"Code {exc_code}")
+                        self.log(f"Modbus Slave ID={self.slave_id} báo lỗi Exception F={resp[1]:02X}: {exc_str}", "WARNING")
                 regs = parse_fc03_response(resp, self.slave_id, self.read_count)
                 if regs is not None:
                     self.current_read_regs = regs
                     if self.active_tab == "POWER":
-                        if len(regs) == 10:
-                            self.hardware_pwr_ctrl_regs = list(regs)
-                            self.hardware_pwr_read_regs = list(regs) + [0] * 26
-                        elif len(regs) >= 36:
-                            self.hardware_pwr_read_regs = list(regs[:36])
-                            self.hardware_pwr_ctrl_regs = list(regs[:10])
+                        pwr_u16 = [r & 0xFFFF for r in regs]
+                        if len(pwr_u16) >= 10:
+                            self.hardware_pwr_ctrl_regs = list(pwr_u16[:10])
                         else:
-                            self.hardware_pwr_read_regs = list(regs)
+                            self.hardware_pwr_ctrl_regs = list(pwr_u16) + [0] * (10 - len(pwr_u16))
+                        
+                        if len(pwr_u16) >= 36:
+                            self.hardware_pwr_read_regs = list(pwr_u16[:36])
+                        else:
+                            self.hardware_pwr_read_regs = list(pwr_u16) + [0] * (36 - len(pwr_u16))
                     elif self.active_tab == "MLD":
                         self.hardware_mld_read_regs = list(regs[:7])
                     return True
@@ -1191,9 +1198,9 @@ class MGMConnection:
             "pwr_total_kwh": pwr_kwh,
 
             # BẢNG DỮ LIỆU ĐẶC TẢ MODBUS POWER (36 READ REGS + 10 CTRL REGS)
-            "pwr_state": self.hardware_pwr_ctrl_regs[0] if not self.is_simulator else self.simulator.pwr_ctrl_regs[0],
-            "pwr_ctrl_regs": list(self.hardware_pwr_ctrl_regs) if not self.is_simulator else list(self.simulator.pwr_ctrl_regs),
-            "pwr_read_regs": list(self.hardware_pwr_read_regs) if not self.is_simulator else list(self.simulator.pwr_read_regs),
+            "pwr_state": abs(self.hardware_pwr_ctrl_regs[0]) if not self.is_simulator else abs(self.simulator.pwr_ctrl_regs[0]),
+            "pwr_ctrl_regs": [abs(x) for x in self.hardware_pwr_ctrl_regs] if not self.is_simulator else [abs(x) for x in self.simulator.pwr_ctrl_regs],
+            "pwr_read_regs": [abs(x) for x in self.hardware_pwr_read_regs] if not self.is_simulator else [abs(x) for x in self.simulator.pwr_read_regs],
 
             # BẢNG DỮ LIỆU ĐẶC TẢ BỘ ĐIỀU KHIỂN MLD (7 READ REGS + 4 WRITE REGS)
             "mld_read_regs": list(self.hardware_mld_read_regs) if not self.is_simulator else [

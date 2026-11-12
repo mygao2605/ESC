@@ -298,7 +298,7 @@ class ViettelMainApp(ctk.CTk):
         # 4 Tab quản lý chuyên biệt theo chuẩn hệ thống Viettel
         self.tab_esc_container = self.tabview.add("🚀 ĐIỀU TỐC ESC / BLDC")
         self.tab_bmu_container = self.tabview.add("🔋 QUẢN LÝ PIN BMU / BMS")
-        self.tab_power_container = self.tabview.add("⚡ HỆ THỐNG NGUỒN & PDU")
+        self.tab_power_container = self.tabview.add("⚡ HỆ THỐNG NGUỒN & PDU (POWER)")
         self.tab_mld_container = self.tabview.add("🎯 BỘ TRUYỀN ĐỘNG MLD")
 
         # Khởi tạo và nhúng 4 View từ 4 module chuyên biệt
@@ -318,10 +318,14 @@ class ViettelMainApp(ctk.CTk):
         """Xử lý sự kiện khi người dùng chuyển đổi tab"""
         sel = self.tabview.get()
         last_d = getattr(self, '_last_telemetry', None)
-        if "POWER" in sel:
+        if any(k in sel for k in ("POWER", "NGUỒN", "PDU")):
             self.conn.set_active_tab("POWER")
+            if hasattr(self, 'view_power') and hasattr(self.view_power, 'sub_tabview'):
+                sub_sel = self.view_power.sub_tabview.get()
+                count = 10 if "10" in sub_sel else 36
+                self.conn.set_power_read_count(count)
             self.lbl_port_spec.configure(
-                text=f"Port: {self.conn.port_name} ({self.conn.baud_rate}-8-N-1) | ID={self.conn.slave_id} | Modbus POWER: F=03 Read (36 Regs) / F=16 Write (10 Regs)"
+                text=f"Port: {self.conn.port_name} ({self.conn.baud_rate}-8-N-1) | ID={self.conn.slave_id} | Modbus POWER: F=03 Read ({self.conn.read_count} Regs) / F=16 Write (10 Regs)"
             )
             if hasattr(self, 'view_power') and last_d:
                 self.view_power.update_telemetry(last_d)
@@ -481,7 +485,7 @@ class ViettelMainApp(ctk.CTk):
                 sel = self.tabview.get() if hasattr(self, 'tabview') else ""
 
                 # Phân phối telemetry tới Tab đang mở
-                if "POWER" in sel and hasattr(self, 'view_power') and self.view_power.winfo_exists():
+                if any(k in sel for k in ("POWER", "NGUỒN", "PDU")) and hasattr(self, 'view_power') and self.view_power.winfo_exists():
                     self.view_power.update_telemetry(latest_d)
                 elif "ESC" in sel and hasattr(self, 'view_esc') and self.view_esc.winfo_exists():
                     self.view_esc.update_telemetry(latest_d)
