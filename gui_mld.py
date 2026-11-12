@@ -3,7 +3,7 @@ VIETTEL PROPULSION SUITE - MLD CONTROLLER GUI
 File: gui_mld.py
 Chịu trách nhiệm:
 1. Giao diện quản lý & điều khiển Bộ điều khiển MLD (MLD Controller).
-2. Bản tin đọc (Read - Modbus Function 03): 7 thanh ghi (2 Byte mỗi thanh ghi):
+2. Bản tin đọc (Read - Modbus Function 03): 7 thanh ghi:
    - [0] State (Trạng thái)
    - [1] Position (Vị trí hiện tại, đơn vị mm: -1700 .. 1700)
    - [2] Vdc_bus (Điện áp nguồn DC Bus, V)
@@ -11,8 +11,8 @@ Chịu trách nhiệm:
    - [4] Set_Position (Vị trí đặt phản hồi về, mm)
    - [5] Speed (Tốc độ động cơ, RPM)
    - [6] Hall_Value (Giá trị cảm biến Hall)
-3. Bản tin ghi (Write - Modbus Function 16): 4 thanh ghi (2 Byte mỗi thanh ghi):
-   - [0] Set_Position (Vị trí đặt mong muốn: mm, giới hạn -1700 đến 1700)
+3. Bản tin ghi (Write - Modbus Function 16): 4 thanh ghi:
+   - [0] Set_Position (Vị trí đặt: mm, giới hạn -1700 đến 1700)
    - [1] State (Lệnh trạng thái BẬT/TẮT: 1 hoặc 0)
    - [2] Sel_test (Chế độ tự kiểm tra: ON=1 / OFF=0)
    - [3] Period (ms) (Chu kỳ thời gian thực thi: 100 đến 2000 ms)
@@ -32,16 +32,16 @@ from tkinter import filedialog, messagebox
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-# Bảng màu chuẩn Viettel Red
-VIETTEL_RED = "#EE0033"
-VIETTEL_RED_HOVER = "#C4002A"
-VIETTEL_RED_LIGHT = "#FF335C"
-VIETTEL_PANEL_BG = "#1A1416"
-VIETTEL_CARD_BG = "#221A1D"
-VIETTEL_BORDER = "#42252A"
-VIETTEL_TEXT_WHITE = "#FFFFFF"
-VIETTEL_TEXT_GRAY = "#B5A7AA"
-MODBUS_BLUE_SEL = "#0078D7"
+from viettel_theme import (
+    COLOR_BG, COLOR_HEADER_BG, COLOR_PANEL_BG, COLOR_CARD_BG, COLOR_CARD_BG_HOVER,
+    COLOR_CARD_INNER, COLOR_ROW_ALT1, COLOR_ROW_ALT2, COLOR_BORDER, COLOR_BORDER_SUBTLE,
+    COLOR_BORDER_RED, VIETTEL_RED, VIETTEL_RED_HOVER, VIETTEL_RED_LIGHT, VIETTEL_RED_GLOW,
+    COLOR_SUCCESS, COLOR_SUCCESS_HOVER, COLOR_SUCCESS_GLOW, COLOR_CYAN,
+    COLOR_WARNING, COLOR_WARNING_LIGHT, COLOR_CRITICAL, COLOR_BLUE_SEL,
+    COLOR_TEXT_WHITE, COLOR_TEXT_GRAY, COLOR_TEXT_MUTED,
+    font_section_title, font_card_label, font_digital_lg, font_digital_md, font_digital_sm,
+    font_mono, font_mono_sm, font_btn, FONT_PRIMARY, safe_configure_label
+)
 
 # BẢNG ĐẶC TẢ 7 THANH GHI BẢN TIN ĐỌC (FUNCTION 03)
 MLD_READ_REGISTERS = [
@@ -64,32 +64,16 @@ MLD_WRITE_REGISTERS = [
 
 
 def _safe_configure_label(lbl, text: str, text_color: str = None):
-    """Chỉ gọi lbl.configure() khi text hoặc text_color thực sự thay đổi nhằm triệt tiêu giật lag/flicker"""
-    if lbl is None:
-        return
-    cached_text = getattr(lbl, "_cached_text", None)
-    cached_color = getattr(lbl, "_cached_color", None)
-    changed = False
-    kwargs = {}
-    if cached_text != text:
-        kwargs["text"] = text
-        lbl._cached_text = text
-        changed = True
-    if text_color is not None and cached_color != text_color:
-        kwargs["text_color"] = text_color
-        lbl._cached_color = text_color
-        changed = True
-    if changed:
-        lbl.configure(**kwargs)
+    safe_configure_label(lbl, text, text_color)
 
 
 class MLDTabFrame(ctk.CTkScrollableFrame):
-    """Giao diện quản lý & điều khiển Bộ điều khiển MLD (MLD Controller)"""
+    """Giao diện quản lý & điều khiển Bộ điều khiển MLD (MLD Controller) chuẩn sản xuất"""
     def __init__(self, master, conn, **kwargs):
         super().__init__(
             master,
             fg_color="transparent",
-            scrollbar_button_color="#3D2024",
+            scrollbar_button_color="#223042",
             scrollbar_button_hover_color=VIETTEL_RED,
             **kwargs
         )
@@ -139,7 +123,10 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
     # 1. THANH TRẠNG THÁI TRUYỀN THÔNG MODBUS MLD
     # -------------------------------------------------------------------------
     def _build_modbus_status_bar(self):
-        status_card = ctk.CTkFrame(self, fg_color=VIETTEL_CARD_BG, corner_radius=8, border_width=1, border_color=VIETTEL_BORDER)
+        status_card = ctk.CTkFrame(
+            self, fg_color=COLOR_CARD_BG, corner_radius=8,
+            border_width=1, border_color=COLOR_BORDER
+        )
         status_card.pack(fill="x", padx=10, pady=(6, 4))
 
         row1 = ctk.CTkFrame(status_card, fg_color="transparent")
@@ -147,38 +134,50 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
 
         ctk.CTkLabel(
             row1,
-            text="🎯 BỘ ĐIỀU KHIỂN MLD - BẢN TIN ĐỌC (7 THANH GHI) & BẢN TIN GHI (4 THANH GHI)",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=VIETTEL_TEXT_WHITE
+            text="🎯 BỘ ĐIỀU KHIỂN TRUYỀN ĐỘNG MLD — MODBUS F=03 (READ 7) & F=16 (WRITE 4)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"),
+            text_color=COLOR_TEXT_WHITE
         ).pack(side="left")
 
         self.lbl_read_stat = ctk.CTkLabel(
             row1,
             text="Tx = 0: Err = 0: ID = 1: F = 03: SR = 500ms (Read 7 Regs)",
-            font=ctk.CTkFont(family="Consolas", size=10),
-            text_color="#80D8FF"
+            font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
+            text_color=COLOR_CYAN
         )
         self.lbl_read_stat.pack(side="right", padx=10)
 
         self.lbl_write_stat = ctk.CTkLabel(
             row1,
             text="Tx = 0: Err = 0: ID = 1: F = 16 (Write 4 Regs)",
-            font=ctk.CTkFont(family="Consolas", size=10),
-            text_color="#B9F6CA"
+            font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
+            text_color=COLOR_SUCCESS_GLOW
         )
         self.lbl_write_stat.pack(side="right", padx=10)
 
         # Hàng hiển thị Frame HEX Modbus
-        row2 = ctk.CTkFrame(status_card, fg_color="#181214", corner_radius=6, border_width=1, border_color="#361E22")
+        row2 = ctk.CTkFrame(
+            status_card, fg_color=COLOR_CARD_INNER, corner_radius=6,
+            border_width=1, border_color=COLOR_BORDER_SUBTLE
+        )
         row2.pack(fill="x", padx=12, pady=(0, 6))
 
-        self.lbl_read_tx_hex = ctk.CTkLabel(row2, text="[TX F=03] >> 01 03 00 00 00 07 04 08", font=ctk.CTkFont(family="Consolas", size=9), text_color="#A5D6A7")
+        self.lbl_read_tx_hex = ctk.CTkLabel(
+            row2, text="[TX F=03] >> 01 03 00 00 00 07 04 08",
+            font=ctk.CTkFont(family="Consolas", size=9), text_color=COLOR_SUCCESS_GLOW
+        )
         self.lbl_read_tx_hex.pack(side="left", padx=8, pady=3)
 
-        self.lbl_read_rx_hex = ctk.CTkLabel(row2, text="[RX F=03] << Chưa có phản hồi", font=ctk.CTkFont(family="Consolas", size=9), text_color="#FFE082")
+        self.lbl_read_rx_hex = ctk.CTkLabel(
+            row2, text="[RX F=03] << Chưa có phản hồi",
+            font=ctk.CTkFont(family="Consolas", size=9), text_color=COLOR_WARNING_LIGHT
+        )
         self.lbl_read_rx_hex.pack(side="left", padx=15, pady=3)
 
-        self.lbl_write_tx_hex = ctk.CTkLabel(row2, text="[TX F=16] >> (Sẵn sàng)", font=ctk.CTkFont(family="Consolas", size=9), text_color="#80CBC4")
+        self.lbl_write_tx_hex = ctk.CTkLabel(
+            row2, text="[TX F=16] >> (Sẵn sàng)",
+            font=ctk.CTkFont(family="Consolas", size=9), text_color=COLOR_CYAN
+        )
         self.lbl_write_tx_hex.pack(side="right", padx=8, pady=3)
 
     # -------------------------------------------------------------------------
@@ -192,32 +191,46 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
             hero_box.grid_columnconfigure(col, weight=1)
 
         cards_spec = [
-            ("state", "TRẠNG THÁI (STATE)", "IDLE (0)", VIETTEL_TEXT_WHITE, "Thanh ghi 0"),
-            ("position", "VỊ TRÍ THỰC (POS)", "0", "#00E676", "Thanh ghi 1 (mm)"),
-            ("vdc_bus", "ĐIỆN ÁP DC (VDC)", "0.0", "#FFD54F", "Thanh ghi 2 (V)"),
-            ("error_code", "MÃ LỖI (ERR)", "0 (OK)", "#00E676", "Thanh ghi 3"),
-            ("set_pos_read", "VỊ TRÍ ĐẶT (SET)", "0", "#80D8FF", "Thanh ghi 4 (mm)"),
-            ("speed", "TỐC ĐỘ (SPEED)", "0", "#FF8A80", "Thanh ghi 5 (RPM)"),
-            ("hall_val", "CẢM BIẾN HALL", "0 (0x00)", "#E040FB", "Thanh ghi 6 (Bits)"),
+            ("state", "TRẠNG THÁI (STATE)", "IDLE (0)", COLOR_TEXT_WHITE, "Thanh ghi 0"),
+            ("position", "VỊ TRÍ THỰC (POS)", "0", COLOR_SUCCESS_GLOW, "Thanh ghi 1 (mm)"),
+            ("vdc_bus", "ĐIỆN ÁP DC (VDC)", "0.0", COLOR_WARNING_LIGHT, "Thanh ghi 2 (V)"),
+            ("error_code", "MÃ LỖI (ERR)", "0 (OK)", COLOR_SUCCESS_GLOW, "Thanh ghi 3"),
+            ("set_pos_read", "VỊ TRÍ ĐẶT (SET)", "0", COLOR_CYAN, "Thanh ghi 4 (mm)"),
+            ("speed", "TỐC ĐỘ (SPEED)", "0", "#FB923C", "Thanh ghi 5 (RPM)"),
+            ("hall_val", "CẢM BIẾN HALL", "0 (0x00)", "#C084FC", "Thanh ghi 6 (Bits)"),
         ]
 
         for idx, (key, title, default_val, text_color, note) in enumerate(cards_spec):
-            card = ctk.CTkFrame(hero_box, fg_color=VIETTEL_CARD_BG, corner_radius=8, border_width=1, border_color=VIETTEL_BORDER)
+            card = ctk.CTkFrame(
+                hero_box, fg_color=COLOR_CARD_BG, corner_radius=8,
+                border_width=1, border_color=COLOR_BORDER
+            )
             card.grid(row=0, column=idx, padx=3, pady=2, sticky="nsew")
 
-            ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=9, weight="bold"), text_color=VIETTEL_TEXT_GRAY).pack(pady=(6, 1))
+            ctk.CTkLabel(
+                card, text=title, font=ctk.CTkFont(family=FONT_PRIMARY, size=9, weight="bold"),
+                text_color=COLOR_TEXT_GRAY
+            ).pack(pady=(6, 1))
 
-            lbl_val = ctk.CTkLabel(card, text=default_val, font=ctk.CTkFont(family="Consolas", size=15, weight="bold"), text_color=text_color)
+            lbl_val = ctk.CTkLabel(
+                card, text=default_val,
+                font=ctk.CTkFont(family="Consolas", size=15, weight="bold"), text_color=text_color
+            )
             lbl_val.pack(pady=1)
             self.hero_labels[key] = lbl_val
 
-            ctk.CTkLabel(card, text=note, font=ctk.CTkFont(size=8), text_color="#7A686B").pack(pady=(0, 5))
+            ctk.CTkLabel(
+                card, text=note, font=ctk.CTkFont(size=8), text_color=COLOR_TEXT_MUTED
+            ).pack(pady=(0, 5))
 
     # -------------------------------------------------------------------------
     # 3. KHU VỰC ĐIỀU KHIỂN & BẢN TIN GHI (4 THANH GHI)
     # -------------------------------------------------------------------------
     def _build_control_write_section(self):
-        ctrl_box = ctk.CTkFrame(self, fg_color=VIETTEL_CARD_BG, corner_radius=8, border_width=1, border_color=VIETTEL_BORDER)
+        ctrl_box = ctk.CTkFrame(
+            self, fg_color=COLOR_CARD_BG, corner_radius=8,
+            border_width=1, border_color=COLOR_BORDER
+        )
         ctrl_box.pack(fill="x", padx=10, pady=4)
 
         header = ctk.CTkFrame(ctrl_box, fg_color="transparent")
@@ -226,15 +239,15 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         ctk.CTkLabel(
             header,
             text="⚡ ĐIỀU KHIỂN & BẢN TIN GHI (MODBUS FUNCTION 16 - 4 THANH GHI)",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=VIETTEL_TEXT_WHITE
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"),
+            text_color=COLOR_TEXT_WHITE
         ).pack(side="left")
 
         # Nút ghi tức thời và công tắc ghi lặp
         self.sw_cyclic_write = ctk.CTkSwitch(
             header,
             text="Ghi chu kỳ (Cyclic Write)",
-            font=ctk.CTkFont(size=10),
+            font=ctk.CTkFont(size=10, weight="bold"),
             progress_color=VIETTEL_RED,
             command=self._on_toggle_cyclic_write
         )
@@ -244,10 +257,10 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
             header,
             text="⚡ GỬI LỆNH GHI (F=16)",
             width=150,
-            height=26,
+            height=28,
             fg_color=VIETTEL_RED,
             hover_color=VIETTEL_RED_HOVER,
-            font=ctk.CTkFont(size=11, weight="bold"),
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"),
             command=self._send_write_command
         )
         self.btn_send_write.pack(side="right", padx=10)
@@ -259,17 +272,28 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
             grid_ctrl.grid_columnconfigure(col, weight=1)
 
         # CỘT 0: SET_POSITION (Thanh ghi 0)
-        c0 = ctk.CTkFrame(grid_ctrl, fg_color="#181214", corner_radius=6, border_width=1, border_color="#361E22")
+        c0 = ctk.CTkFrame(
+            grid_ctrl, fg_color=COLOR_CARD_INNER, corner_radius=6,
+            border_width=1, border_color=COLOR_BORDER_SUBTLE
+        )
         c0.grid(row=0, column=0, padx=4, pady=2, sticky="nsew")
 
-        ctk.CTkLabel(c0, text="1. VỊ TRÍ ĐẶT (Set_Position)", font=ctk.CTkFont(size=10, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(pady=(6, 2))
-        
+        ctk.CTkLabel(
+            c0, text="1. VỊ TRÍ ĐẶT (Set_Position)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"), text_color=COLOR_TEXT_WHITE
+        ).pack(pady=(6, 2))
+
         row_pos_input = ctk.CTkFrame(c0, fg_color="transparent")
         row_pos_input.pack(fill="x", padx=8, pady=2)
-        self.ent_set_position = ctk.CTkEntry(row_pos_input, width=75, font=ctk.CTkFont(family="Consolas", size=12, weight="bold"), border_color=VIETTEL_BORDER)
+        self.ent_set_position = ctk.CTkEntry(
+            row_pos_input, width=75, font=ctk.CTkFont(family="Consolas", size=12, weight="bold"),
+            border_color=COLOR_BORDER, fg_color=COLOR_ROW_ALT1
+        )
         self.ent_set_position.insert(0, "0")
         self.ent_set_position.pack(side="left", padx=2)
-        ctk.CTkLabel(row_pos_input, text="mm (-1700..1700)", font=ctk.CTkFont(size=9), text_color=VIETTEL_TEXT_GRAY).pack(side="left", padx=2)
+        ctk.CTkLabel(
+            row_pos_input, text="mm (-1700..1700)", font=ctk.CTkFont(size=9), text_color=COLOR_TEXT_GRAY
+        ).pack(side="left", padx=2)
 
         self.slider_pos = ctk.CTkSlider(
             c0,
@@ -289,22 +313,27 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         p_row.pack(fill="x", padx=6, pady=(0, 6))
         for p_val in [-1700, -850, 0, 850, 1700]:
             ctk.CTkButton(
-                p_row, text=f"{p_val}", width=32, height=20, font=ctk.CTkFont(size=8),
-                fg_color="#2A2022", hover_color="#42252A",
+                p_row, text=f"{p_val}", width=32, height=20,
+                font=ctk.CTkFont(family="Consolas", size=8, weight="bold"),
+                fg_color="#223042", hover_color=VIETTEL_RED,
                 command=lambda val=p_val: self._preset_pos(val)
             ).pack(side="left", padx=1, expand=True)
 
         # CỘT 1: STATE (Thanh ghi 1)
-        c1 = ctk.CTkFrame(grid_ctrl, fg_color="#181214", corner_radius=6, border_width=1, border_color="#361E22")
+        c1 = ctk.CTkFrame(
+            grid_ctrl, fg_color=COLOR_CARD_INNER, corner_radius=6,
+            border_width=1, border_color=COLOR_BORDER_SUBTLE
+        )
         c1.grid(row=0, column=1, padx=4, pady=2, sticky="nsew")
 
-        ctk.CTkLabel(c1, text="2. TRẠNG THÁI (State)", font=ctk.CTkFont(size=10, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(pady=(6, 2))
-        
+        ctk.CTkLabel(
+            c1, text="2. TRẠNG THÁI (State)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"), text_color=COLOR_TEXT_WHITE
+        ).pack(pady=(6, 2))
+
         self.lbl_cmd_state_badge = ctk.CTkLabel(
-            c1,
-            text="LỆNH: TẮT (0)",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=VIETTEL_RED
+            c1, text="LỆNH: TẮT (0)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"), text_color=VIETTEL_RED
         )
         self.lbl_cmd_state_badge.pack(pady=4)
 
@@ -313,7 +342,8 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
 
         self.btn_state_on = ctk.CTkButton(
             btn_row_st, text="🟢 BẬT (1)", width=75, height=26,
-            fg_color="#2A2022", hover_color="#1E8E3E",
+            fg_color="#223042", hover_color=COLOR_SUCCESS_HOVER,
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"),
             command=lambda: self._set_cmd_state(1)
         )
         self.btn_state_on.pack(side="left", padx=3, expand=True)
@@ -321,6 +351,7 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         self.btn_state_off = ctk.CTkButton(
             btn_row_st, text="🔴 TẮT (0)", width=75, height=26,
             fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER,
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"),
             command=lambda: self._set_cmd_state(0)
         )
         self.btn_state_off.pack(side="left", padx=3, expand=True)
@@ -328,16 +359,20 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         self.cmd_state_val = 0
 
         # CỘT 2: SEL_TEST (Thanh ghi 2)
-        c2 = ctk.CTkFrame(grid_ctrl, fg_color="#181214", corner_radius=6, border_width=1, border_color="#361E22")
+        c2 = ctk.CTkFrame(
+            grid_ctrl, fg_color=COLOR_CARD_INNER, corner_radius=6,
+            border_width=1, border_color=COLOR_BORDER_SUBTLE
+        )
         c2.grid(row=0, column=2, padx=4, pady=2, sticky="nsew")
 
-        ctk.CTkLabel(c2, text="3. TỰ KIỂM TRA (Sel_test)", font=ctk.CTkFont(size=10, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(pady=(6, 2))
+        ctk.CTkLabel(
+            c2, text="3. TỰ KIỂM TRA (Sel_test)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"), text_color=COLOR_TEXT_WHITE
+        ).pack(pady=(6, 2))
 
         self.lbl_cmd_test_badge = ctk.CTkLabel(
-            c2,
-            text="SELF-TEST: TẮT (0)",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=VIETTEL_RED
+            c2, text="SELF-TEST: TẮT (0)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"), text_color=VIETTEL_RED
         )
         self.lbl_cmd_test_badge.pack(pady=4)
 
@@ -346,7 +381,8 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
 
         self.btn_test_on = ctk.CTkButton(
             btn_row_test, text="🟢 BẬT (1)", width=75, height=26,
-            fg_color="#2A2022", hover_color="#1E8E3E",
+            fg_color="#223042", hover_color=COLOR_SUCCESS_HOVER,
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"),
             command=lambda: self._set_cmd_sel_test(1)
         )
         self.btn_test_on.pack(side="left", padx=3, expand=True)
@@ -354,35 +390,51 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         self.btn_test_off = ctk.CTkButton(
             btn_row_test, text="🔴 TẮT (0)", width=75, height=26,
             fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER,
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"),
             command=lambda: self._set_cmd_sel_test(0)
         )
         self.btn_test_off.pack(side="left", padx=3, expand=True)
 
         self.cmd_sel_test_val = 0
 
-        self.lbl_test_mode_desc = ctk.CTkLabel(c2, text="Sel_test = 0 (Tắt tự kiểm tra)", font=ctk.CTkFont(size=9), text_color="#A5D6A7")
+        self.lbl_test_mode_desc = ctk.CTkLabel(
+            c2, text="Sel_test = 0 (Tắt tự kiểm tra)",
+            font=ctk.CTkFont(size=9), text_color=COLOR_SUCCESS_GLOW
+        )
         self.lbl_test_mode_desc.pack(pady=(0, 6))
 
         # CỘT 3: PERIOD (Thanh ghi 3)
-        c3 = ctk.CTkFrame(grid_ctrl, fg_color="#181214", corner_radius=6, border_width=1, border_color="#361E22")
+        c3 = ctk.CTkFrame(
+            grid_ctrl, fg_color=COLOR_CARD_INNER, corner_radius=6,
+            border_width=1, border_color=COLOR_BORDER_SUBTLE
+        )
         c3.grid(row=0, column=3, padx=4, pady=2, sticky="nsew")
 
-        ctk.CTkLabel(c3, text="4. CHU KỲ (Period ms)", font=ctk.CTkFont(size=10, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(pady=(6, 2))
+        ctk.CTkLabel(
+            c3, text="4. CHU KỲ (Period ms)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"), text_color=COLOR_TEXT_WHITE
+        ).pack(pady=(6, 2))
 
         row_period = ctk.CTkFrame(c3, fg_color="transparent")
         row_period.pack(fill="x", padx=8, pady=2)
 
-        self.ent_period = ctk.CTkEntry(row_period, width=75, font=ctk.CTkFont(family="Consolas", size=12, weight="bold"), border_color=VIETTEL_BORDER)
+        self.ent_period = ctk.CTkEntry(
+            row_period, width=75, font=ctk.CTkFont(family="Consolas", size=12, weight="bold"),
+            border_color=COLOR_BORDER, fg_color=COLOR_ROW_ALT1
+        )
         self.ent_period.insert(0, "500")
         self.ent_period.pack(side="left", padx=2)
-        ctk.CTkLabel(row_period, text="ms (100..2000)", font=ctk.CTkFont(size=9), text_color=VIETTEL_TEXT_GRAY).pack(side="left", padx=2)
+        ctk.CTkLabel(
+            row_period, text="ms (100..2000)", font=ctk.CTkFont(size=9), text_color=COLOR_TEXT_GRAY
+        ).pack(side="left", padx=2)
 
         t_row = ctk.CTkFrame(c3, fg_color="transparent")
         t_row.pack(fill="x", padx=6, pady=(4, 6))
         for t_val in [100, 200, 500, 1000, 2000]:
             ctk.CTkButton(
-                t_row, text=f"{t_val}", width=32, height=20, font=ctk.CTkFont(size=8),
-                fg_color="#2A2022", hover_color="#42252A",
+                t_row, text=f"{t_val}", width=32, height=20,
+                font=ctk.CTkFont(family="Consolas", size=8, weight="bold"),
+                fg_color="#223042", hover_color=VIETTEL_RED,
                 command=lambda val=t_val: self._preset_period(val)
             ).pack(side="left", padx=1, expand=True)
 
@@ -396,66 +448,116 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         container.grid_columnconfigure(1, weight=2)
 
         # BẢNG 7 THANH GHI ĐỌC (BẢN TIN ĐỌC F=03)
-        box_read = ctk.CTkFrame(container, fg_color=VIETTEL_CARD_BG, corner_radius=8, border_width=1, border_color=VIETTEL_BORDER)
+        box_read = ctk.CTkFrame(
+            container, fg_color=COLOR_CARD_BG, corner_radius=8,
+            border_width=1, border_color=COLOR_BORDER
+        )
         box_read.grid(row=0, column=0, padx=(0, 4), pady=2, sticky="nsew")
 
-        r_head = ctk.CTkFrame(box_read, fg_color="transparent")
-        r_head.pack(fill="x", padx=10, pady=(6, 4))
-        ctk.CTkLabel(r_head, text="📋 BẢN TIN ĐỌC - 7 THANH GHI (FUNCTION 03)", font=ctk.CTkFont(size=10, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(side="left")
+        r_head = ctk.CTkFrame(box_read, fg_color="#182332", height=28, corner_radius=4)
+        r_head.pack(fill="x", padx=6, pady=(6, 4))
+        ctk.CTkLabel(
+            r_head, text="📋 BẢN TIN ĐỌC — 7 THANH GHI (FUNCTION 03)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"), text_color=COLOR_TEXT_WHITE
+        ).pack(side="left", padx=8)
 
-        cols_spec = [("Địa chỉ", 50), ("Tên thanh ghi", 95), ("DEC", 75), ("HEX", 75), ("Mô tả / Đơn vị", 140)]
-        head_row = ctk.CTkFrame(box_read, fg_color="#181214", height=22, corner_radius=4)
-        head_row.pack(fill="x", padx=8, pady=(0, 2))
+        cols_spec = [("Địa chỉ", 55), ("Tên thanh ghi", 100), ("DEC", 80), ("HEX", 75), ("Mô tả / Đơn vị", 150)]
+        head_row = ctk.CTkFrame(box_read, fg_color="#1F2937", height=24, corner_radius=4)
+        head_row.pack(fill="x", padx=6, pady=(0, 2))
         for col_name, w in cols_spec:
-            ctk.CTkLabel(head_row, text=col_name, width=w, font=ctk.CTkFont(size=9, weight="bold"), text_color=VIETTEL_TEXT_GRAY).pack(side="left", padx=2)
+            ctk.CTkLabel(
+                head_row, text=col_name, width=w,
+                font=ctk.CTkFont(family=FONT_PRIMARY, size=9, weight="bold"), text_color=COLOR_TEXT_GRAY
+            ).pack(side="left", padx=2)
 
         for reg in MLD_READ_REGISTERS:
             idx = reg["index"]
-            row = ctk.CTkFrame(box_read, fg_color="#20181A" if idx % 2 == 0 else "#1A1416", height=24, corner_radius=3)
-            row.pack(fill="x", padx=8, pady=1)
+            row_bg = COLOR_ROW_ALT1 if idx % 2 == 0 else COLOR_ROW_ALT2
+            row = ctk.CTkFrame(box_read, fg_color=row_bg, height=24, corner_radius=3)
+            row.pack(fill="x", padx=6, pady=1)
 
-            ctk.CTkLabel(row, text=f"Reg #{idx}", width=50, font=ctk.CTkFont(family="Consolas", size=9), text_color="#A5A5A5").pack(side="left", padx=2)
-            ctk.CTkLabel(row, text=reg["name"], width=95, font=ctk.CTkFont(size=9, weight="bold"), text_color=VIETTEL_TEXT_WHITE, anchor="w").pack(side="left", padx=2)
+            ctk.CTkLabel(
+                row, text=f"Reg #{idx}", width=55,
+                font=ctk.CTkFont(family="Consolas", size=9, weight="bold"), text_color=COLOR_TEXT_MUTED
+            ).pack(side="left", padx=2)
+            ctk.CTkLabel(
+                row, text=reg["name"], width=100,
+                font=ctk.CTkFont(family=FONT_PRIMARY, size=9, weight="bold"), text_color=COLOR_TEXT_WHITE, anchor="w"
+            ).pack(side="left", padx=2)
 
-            lbl_val = ctk.CTkLabel(row, text="0", width=75, font=ctk.CTkFont(family="Consolas", size=10, weight="bold"), text_color="#00E676", anchor="e")
+            lbl_val = ctk.CTkLabel(
+                row, text="0", width=80,
+                font=ctk.CTkFont(family="Consolas", size=10, weight="bold"), text_color=COLOR_SUCCESS_GLOW, anchor="e"
+            )
             lbl_val.pack(side="left", padx=2)
 
-            lbl_hex = ctk.CTkLabel(row, text="0x0000", width=75, font=ctk.CTkFont(family="Consolas", size=9), text_color="#FFE082", anchor="e")
+            lbl_hex = ctk.CTkLabel(
+                row, text="0x0000", width=75,
+                font=ctk.CTkFont(family="Consolas", size=9), text_color=COLOR_WARNING_LIGHT, anchor="e"
+            )
             lbl_hex.pack(side="left", padx=2)
 
-            ctk.CTkLabel(row, text=f"{reg['desc']} ({reg['unit']})", width=140, font=ctk.CTkFont(size=8), text_color=VIETTEL_TEXT_GRAY, anchor="w").pack(side="left", padx=6)
+            ctk.CTkLabel(
+                row, text=f"{reg['desc']} ({reg['unit']})", width=150,
+                font=ctk.CTkFont(size=8), text_color=COLOR_TEXT_GRAY, anchor="w"
+            ).pack(side="left", padx=6)
 
             self.read_row_labels[idx] = {"val": lbl_val, "hex": lbl_hex}
 
         # BẢNG 4 THANH GHI GHI (BẢN TIN GHI F=16)
-        box_write = ctk.CTkFrame(container, fg_color=VIETTEL_CARD_BG, corner_radius=8, border_width=1, border_color=VIETTEL_BORDER)
+        box_write = ctk.CTkFrame(
+            container, fg_color=COLOR_CARD_BG, corner_radius=8,
+            border_width=1, border_color=COLOR_BORDER
+        )
         box_write.grid(row=0, column=1, padx=(4, 0), pady=2, sticky="nsew")
 
-        w_head = ctk.CTkFrame(box_write, fg_color="transparent")
-        w_head.pack(fill="x", padx=10, pady=(6, 4))
-        ctk.CTkLabel(w_head, text="📤 BẢN TIN GHI - 4 THANH GHI (FUNCTION 16)", font=ctk.CTkFont(size=10, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(side="left")
+        w_head = ctk.CTkFrame(box_write, fg_color="#182332", height=28, corner_radius=4)
+        w_head.pack(fill="x", padx=6, pady=(6, 4))
+        ctk.CTkLabel(
+            w_head, text="📤 BẢN TIN GHI — 4 THANH GHI (FUNCTION 16)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"), text_color=COLOR_TEXT_WHITE
+        ).pack(side="left", padx=8)
 
-        w_cols = [("Địa chỉ", 50), ("Tên thanh ghi", 90), ("DEC", 65), ("HEX", 65), ("Đơn vị", 80)]
-        head_w_row = ctk.CTkFrame(box_write, fg_color="#181214", height=22, corner_radius=4)
-        head_w_row.pack(fill="x", padx=8, pady=(0, 2))
+        w_cols = [("Địa chỉ", 55), ("Tên thanh ghi", 95), ("DEC", 70), ("HEX", 70), ("Đơn vị", 80)]
+        head_w_row = ctk.CTkFrame(box_write, fg_color="#1F2937", height=24, corner_radius=4)
+        head_w_row.pack(fill="x", padx=6, pady=(0, 2))
         for col_name, w in w_cols:
-            ctk.CTkLabel(head_w_row, text=col_name, width=w, font=ctk.CTkFont(size=9, weight="bold"), text_color=VIETTEL_TEXT_GRAY).pack(side="left", padx=2)
+            ctk.CTkLabel(
+                head_w_row, text=col_name, width=w,
+                font=ctk.CTkFont(family=FONT_PRIMARY, size=9, weight="bold"), text_color=COLOR_TEXT_GRAY
+            ).pack(side="left", padx=2)
 
         for reg in MLD_WRITE_REGISTERS:
             idx = reg["index"]
-            row = ctk.CTkFrame(box_write, fg_color="#20181A" if idx % 2 == 0 else "#1A1416", height=24, corner_radius=3)
-            row.pack(fill="x", padx=8, pady=1)
+            row_bg = COLOR_ROW_ALT1 if idx % 2 == 0 else COLOR_ROW_ALT2
+            row = ctk.CTkFrame(box_write, fg_color=row_bg, height=24, corner_radius=3)
+            row.pack(fill="x", padx=6, pady=1)
 
-            ctk.CTkLabel(row, text=f"Reg #{idx}", width=50, font=ctk.CTkFont(family="Consolas", size=9), text_color="#A5A5A5").pack(side="left", padx=2)
-            ctk.CTkLabel(row, text=reg["name"], width=90, font=ctk.CTkFont(size=9, weight="bold"), text_color=VIETTEL_TEXT_WHITE, anchor="w").pack(side="left", padx=2)
+            ctk.CTkLabel(
+                row, text=f"Reg #{idx}", width=55,
+                font=ctk.CTkFont(family="Consolas", size=9, weight="bold"), text_color=COLOR_TEXT_MUTED
+            ).pack(side="left", padx=2)
+            ctk.CTkLabel(
+                row, text=reg["name"], width=95,
+                font=ctk.CTkFont(family=FONT_PRIMARY, size=9, weight="bold"), text_color=COLOR_TEXT_WHITE, anchor="w"
+            ).pack(side="left", padx=2)
 
-            lbl_val = ctk.CTkLabel(row, text=f"{reg['default']}", width=65, font=ctk.CTkFont(family="Consolas", size=10, weight="bold"), text_color="#80D8FF", anchor="e")
+            lbl_val = ctk.CTkLabel(
+                row, text=f"{reg['default']}", width=70,
+                font=ctk.CTkFont(family="Consolas", size=10, weight="bold"), text_color=COLOR_CYAN, anchor="e"
+            )
             lbl_val.pack(side="left", padx=2)
 
-            lbl_hex = ctk.CTkLabel(row, text=f"0x{(reg['default'] & 0xFFFF):04X}", width=65, font=ctk.CTkFont(family="Consolas", size=9), text_color="#FFE082", anchor="e")
+            lbl_hex = ctk.CTkLabel(
+                row, text=f"0x{(reg['default'] & 0xFFFF):04X}", width=70,
+                font=ctk.CTkFont(family="Consolas", size=9), text_color=COLOR_WARNING_LIGHT, anchor="e"
+            )
             lbl_hex.pack(side="left", padx=2)
 
-            ctk.CTkLabel(row, text=reg["unit"], width=80, font=ctk.CTkFont(size=8), text_color=VIETTEL_TEXT_GRAY, anchor="w").pack(side="left", padx=4)
+            ctk.CTkLabel(
+                row, text=reg["unit"], width=80,
+                font=ctk.CTkFont(size=8), text_color=COLOR_TEXT_GRAY, anchor="w"
+            ).pack(side="left", padx=4)
 
             self.write_row_labels[idx] = {"val": lbl_val, "hex": lbl_hex}
 
@@ -463,7 +565,10 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
     # 5. ĐỒ THỊ BÁM VỊ TRÍ THỜI GIAN THỰC (REAL-TIME TRACKING CHART)
     # -------------------------------------------------------------------------
     def _build_chart_section(self):
-        chart_box = ctk.CTkFrame(self, fg_color=VIETTEL_CARD_BG, corner_radius=8, border_width=1, border_color=VIETTEL_BORDER)
+        chart_box = ctk.CTkFrame(
+            self, fg_color=COLOR_CARD_BG, corner_radius=8,
+            border_width=1, border_color=COLOR_BORDER
+        )
         chart_box.pack(fill="x", padx=10, pady=(4, 8))
 
         chart_ctrl = ctk.CTkFrame(chart_box, fg_color="transparent")
@@ -472,24 +577,24 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         ctk.CTkLabel(
             chart_ctrl,
             text="📈 ĐỒ THỊ BÁM VỊ TRÍ & ĐÁP ỨNG THỜI GIAN THỰC MLD (Position vs Set_Position)",
-            font=ctk.CTkFont(size=10, weight="bold"),
-            text_color=VIETTEL_TEXT_WHITE
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"),
+            text_color=COLOR_TEXT_WHITE
         ).pack(side="left")
 
         # Checkboxes bật tắt đường vẽ
-        self.chk_pos = ctk.CTkCheckBox(chart_ctrl, text="Position", font=ctk.CTkFont(size=9), text_color="#00E676", fg_color="#00E676", checkmark_color="#000000", width=70)
+        self.chk_pos = ctk.CTkCheckBox(chart_ctrl, text="Position", font=ctk.CTkFont(size=9, weight="bold"), text_color=COLOR_SUCCESS_GLOW, fg_color=COLOR_SUCCESS, checkmark_color="#000000", width=70)
         self.chk_pos.select()
         self.chk_pos.pack(side="left", padx=6)
 
-        self.chk_setpos = ctk.CTkCheckBox(chart_ctrl, text="Set_Position", font=ctk.CTkFont(size=9), text_color="#FFD54F", fg_color="#FFD54F", checkmark_color="#000000", width=85)
+        self.chk_setpos = ctk.CTkCheckBox(chart_ctrl, text="Set_Position", font=ctk.CTkFont(size=9, weight="bold"), text_color=COLOR_WARNING_LIGHT, fg_color=COLOR_WARNING, checkmark_color="#000000", width=85)
         self.chk_setpos.select()
         self.chk_setpos.pack(side="left", padx=6)
 
-        self.chk_speed = ctk.CTkCheckBox(chart_ctrl, text="Speed/10", font=ctk.CTkFont(size=9), text_color="#4FC3F7", fg_color="#4FC3F7", checkmark_color="#000000", width=70)
+        self.chk_speed = ctk.CTkCheckBox(chart_ctrl, text="Speed/10", font=ctk.CTkFont(size=9, weight="bold"), text_color="#38BDF8", fg_color="#38BDF8", checkmark_color="#000000", width=70)
         self.chk_speed.select()
         self.chk_speed.pack(side="left", padx=6)
 
-        self.chk_vdc = ctk.CTkCheckBox(chart_ctrl, text="Vdc_bus", font=ctk.CTkFont(size=9), text_color=VIETTEL_RED, fg_color=VIETTEL_RED, width=70)
+        self.chk_vdc = ctk.CTkCheckBox(chart_ctrl, text="Vdc_bus", font=ctk.CTkFont(size=9, weight="bold"), text_color=VIETTEL_RED_LIGHT, fg_color=VIETTEL_RED, width=70)
         self.chk_vdc.select()
         self.chk_vdc.pack(side="left", padx=6)
 
@@ -497,27 +602,27 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         self.btn_record = ctk.CTkButton(chart_ctrl, text="🔴 Ghi log CSV", width=95, height=22, fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER, font=ctk.CTkFont(size=9, weight="bold"), command=self._toggle_recording)
         self.btn_record.pack(side="right", padx=3)
 
-        self.btn_clear_chart = ctk.CTkButton(chart_ctrl, text="Xóa đồ thị", width=70, height=22, fg_color="#332427", hover_color="#4D353A", font=ctk.CTkFont(size=9), command=self._clear_chart)
+        self.btn_clear_chart = ctk.CTkButton(chart_ctrl, text="Xóa đồ thị", width=70, height=22, fg_color="#223042", hover_color="#33465C", font=ctk.CTkFont(size=9), command=self._clear_chart)
         self.btn_clear_chart.pack(side="right", padx=3)
 
-        self.btn_pause_chart = ctk.CTkButton(chart_ctrl, text="Tạm dừng", width=70, height=22, fg_color="#332427", hover_color="#4D353A", font=ctk.CTkFont(size=9), command=self._toggle_pause_chart)
+        self.btn_pause_chart = ctk.CTkButton(chart_ctrl, text="Tạm dừng", width=70, height=22, fg_color="#223042", hover_color="#33465C", font=ctk.CTkFont(size=9), command=self._toggle_pause_chart)
         self.btn_pause_chart.pack(side="right", padx=3)
 
         # Khung đồ thị Matplotlib
-        self.fig = Figure(figsize=(8, 2.5), dpi=100, facecolor="#140F11")
+        self.fig = Figure(figsize=(8, 2.5), dpi=100, facecolor=COLOR_CARD_INNER)
         self.ax = self.fig.add_subplot(111)
-        self.ax.set_facecolor("#0F0B0D")
-        self.ax.tick_params(colors="#CCCCCC", labelsize=8)
-        self.ax.grid(True, linestyle="--", alpha=0.25, color="#5E2028")
+        self.ax.set_facecolor("#080B0F")
+        self.ax.tick_params(colors="#94A3B8", labelsize=8)
+        self.ax.grid(True, linestyle="--", alpha=0.2, color="#334155")
 
         for spine in self.ax.spines.values():
-            spine.set_color("#4A1B22")
+            spine.set_color("#1E293B")
 
-        self.line_pos, = self.ax.plot([], [], label="Position (mm)", color="#00E676", linewidth=1.8)
-        self.line_setpos, = self.ax.plot([], [], label="Set_Position (mm)", color="#FFD54F", linewidth=1.5, linestyle="--")
-        self.line_speed, = self.ax.plot([], [], label="Speed / 10", color="#4FC3F7", linewidth=1.4)
-        self.line_vdc, = self.ax.plot([], [], label="Vdc_bus (V)", color=VIETTEL_RED, linewidth=1.4)
-        self.ax.legend(loc="upper left", ncol=4, facecolor="#1E1618", edgecolor=VIETTEL_BORDER, labelcolor=VIETTEL_TEXT_WHITE, fontsize=8)
+        self.line_pos, = self.ax.plot([], [], label="Position (mm)", color=COLOR_SUCCESS_GLOW, linewidth=1.8)
+        self.line_setpos, = self.ax.plot([], [], label="Set_Position (mm)", color=COLOR_WARNING_LIGHT, linewidth=1.5, linestyle="--")
+        self.line_speed, = self.ax.plot([], [], label="Speed / 10", color="#38BDF8", linewidth=1.4)
+        self.line_vdc, = self.ax.plot([], [], label="Vdc_bus (V)", color=VIETTEL_RED_LIGHT, linewidth=1.4)
+        self.ax.legend(loc="upper left", ncol=4, facecolor="#141B24", edgecolor=COLOR_BORDER, labelcolor=COLOR_TEXT_WHITE, fontsize=8)
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=chart_box)
         self.canvas.draw()
@@ -548,26 +653,26 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
     def _set_cmd_state(self, state_val: int):
         self.cmd_state_val = 1 if state_val != 0 else 0
         if self.cmd_state_val == 1:
-            self.lbl_cmd_state_badge.configure(text="LỆNH: BẬT (1)", text_color="#00E676")
-            self.btn_state_on.configure(fg_color="#1E8E3E", hover_color="#16692D")
-            self.btn_state_off.configure(fg_color="#2A2022", hover_color="#42252A")
+            self.lbl_cmd_state_badge.configure(text="LỆNH: BẬT (1)", text_color=COLOR_SUCCESS_GLOW)
+            self.btn_state_on.configure(fg_color=COLOR_SUCCESS, hover_color=COLOR_SUCCESS_HOVER)
+            self.btn_state_off.configure(fg_color="#223042", hover_color="#33465C")
         else:
             self.lbl_cmd_state_badge.configure(text="LỆNH: TẮT (0)", text_color=VIETTEL_RED)
-            self.btn_state_on.configure(fg_color="#2A2022", hover_color="#42252A")
+            self.btn_state_on.configure(fg_color="#223042", hover_color="#33465C")
             self.btn_state_off.configure(fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER)
         self._send_write_command()
 
     def _set_cmd_sel_test(self, test_val: int):
         self.cmd_sel_test_val = 1 if test_val != 0 else 0
         if self.cmd_sel_test_val == 1:
-            self.lbl_cmd_test_badge.configure(text="SELF-TEST: BẬT (1)", text_color="#00E676")
-            self.lbl_test_mode_desc.configure(text="Sel_test = 1 (Bật tự kiểm tra)", text_color="#FFE082")
-            self.btn_test_on.configure(fg_color="#1E8E3E", hover_color="#16692D")
-            self.btn_test_off.configure(fg_color="#2A2022", hover_color="#42252A")
+            self.lbl_cmd_test_badge.configure(text="SELF-TEST: BẬT (1)", text_color=COLOR_SUCCESS_GLOW)
+            self.lbl_test_mode_desc.configure(text="Sel_test = 1 (Bật tự kiểm tra)", text_color=COLOR_WARNING_LIGHT)
+            self.btn_test_on.configure(fg_color=COLOR_SUCCESS, hover_color=COLOR_SUCCESS_HOVER)
+            self.btn_test_off.configure(fg_color="#223042", hover_color="#33465C")
         else:
             self.lbl_cmd_test_badge.configure(text="SELF-TEST: TẮT (0)", text_color=VIETTEL_RED)
-            self.lbl_test_mode_desc.configure(text="Sel_test = 0 (Tắt tự kiểm tra)", text_color="#A5D6A7")
-            self.btn_test_on.configure(fg_color="#2A2022", hover_color="#42252A")
+            self.lbl_test_mode_desc.configure(text="Sel_test = 0 (Tắt tự kiểm tra)", text_color=COLOR_SUCCESS_GLOW)
+            self.btn_test_on.configure(fg_color="#223042", hover_color="#33465C")
             self.btn_test_off.configure(fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER)
         self._send_write_command()
 
@@ -611,7 +716,7 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         self.is_monitoring = not self.is_monitoring
         self.btn_pause_chart.configure(
             text="Tiếp tục" if not self.is_monitoring else "Tạm dừng",
-            fg_color="#0078D7" if not self.is_monitoring else "#332427"
+            fg_color=COLOR_BLUE_SEL if not self.is_monitoring else "#223042"
         )
 
     def _clear_chart(self):
@@ -638,7 +743,7 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
                     "State", "Position", "Vdc_bus", "Error_code", "Set_Position_Read", "Speed", "Hall_Value",
                     "Cmd_Set_Position", "Cmd_State", "Cmd_Sel_test", "Cmd_Period_ms"
                 ])
-                self.btn_record.configure(text="⏹ Dừng ghi CSV", fg_color="#1E8E3E", hover_color="#16692D")
+                self.btn_record.configure(text="⏹ Dừng ghi CSV", fg_color=COLOR_SUCCESS, hover_color=COLOR_SUCCESS_HOVER)
                 self.record_start_time = time.time()
             except Exception as e:
                 messagebox.showerror("Lỗi mở file", f"Không thể tạo file ghi log CSV: {e}")
@@ -701,7 +806,6 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         # 1. TRÍCH XUẤT 7 THANH GHI BẢN TIN ĐỌC
         mld_read = d.get("mld_read_regs", [])
         if not mld_read or len(mld_read) < 7:
-            # Fallback lấy từ các trường riêng
             st = d.get("mld_state", 0)
             pos = d.get("mld_position", 0)
             vdc = d.get("mld_vdc_bus", 48)
@@ -715,11 +819,11 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
 
         # Cập nhật 7 Hero cards
         st_text = "🟢 RUN (1)" if st == 1 else "⚪ IDLE (0)" if st == 0 else f"🔴 FAULT ({st})"
-        st_color = "#00E676" if st == 1 else VIETTEL_TEXT_WHITE if st == 0 else VIETTEL_RED
+        st_color = COLOR_SUCCESS_GLOW if st == 1 else COLOR_TEXT_WHITE if st == 0 else VIETTEL_RED
         _safe_configure_label(self.hero_labels["state"], st_text, st_color)
         _safe_configure_label(self.hero_labels["position"], f"{pos}")
         _safe_configure_label(self.hero_labels["vdc_bus"], f"{vdc:.1f}" if isinstance(vdc, float) else f"{vdc}")
-        _safe_configure_label(self.hero_labels["error_code"], "0 (OK)" if err == 0 else f"ERR ({err})", "#00E676" if err == 0 else VIETTEL_RED)
+        _safe_configure_label(self.hero_labels["error_code"], "0 (OK)" if err == 0 else f"ERR ({err})", COLOR_SUCCESS_GLOW if err == 0 else VIETTEL_RED)
         _safe_configure_label(self.hero_labels["set_pos_read"], f"{set_pos}")
         _safe_configure_label(self.hero_labels["speed"], f"{spd}")
         _safe_configure_label(self.hero_labels["hall_val"], f"{hall} (0b{hall:03b})")
@@ -762,4 +866,3 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
             self.ax.relim()
             self.ax.autoscale_view(True, True, True)
             self.canvas.draw_idle()
-

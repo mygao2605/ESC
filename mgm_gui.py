@@ -2,17 +2,18 @@
 VIETTEL PROPULSION SUITE - MAIN APPLICATION GUI
 File: mgm_gui.py
 Chịu trách nhiệm:
-1. Cửa sổ ứng dụng chính (Main Application Window) chuẩn nhận diện Đỏ Viettel (Viettel Red Theme).
-2. Thanh Header quản lý kết nối truyền thông:
+1. Cửa sổ ứng dụng chính (Main Application Window) chuẩn nhận diện Đỏ Viettel & Titanium Obsidian.
+2. Thanh Header quản lý kết nối truyền thông công nghiệp:
    - Cổng Serial (Port COM11, Baudrate 921600-8-N-1 theo bantin.jpeg)
    - Modbus Slave ID (ID = 1) và Chu kỳ quét Scan Rate (SR = 500ms)
    - Chế độ Mô phỏng (Simulator Switch) và Nút Kết nối (Connect/Disconnect)
-3. Tích hợp 3 Tab quản lý chuyên biệt từ 3 file GUI riêng biệt:
-   - Tab 1: 🚀 QUẢN LÝ ESC / ĐỘNG CƠ (nạp từ gui_esc.py)
-   - Tab 2: 🔋 QUẢN LÝ BMU / PIN (nạp từ gui_bmu.py)
-   - Tab 3: ⚡ QUẢN LÝ NGUỒN / POWER PDU (nạp từ gui_power.py)
-4. Thanh công cụ tiện ích mở rộng: Cấu hình tham số, Lịch sử Datalogger BlackBox, Terminal Modbus HEX
-5. Hàng đợi đa luồng thread-safe phân phối dữ liệu telemetry đồng bộ đến cả 3 module.
+3. Tích hợp 4 Tab quản lý chuyên biệt từ 4 file GUI riêng biệt:
+   - Tab 1: 🚀 ĐIỀU TỐC ESC / BLDC (nạp từ gui_esc.py)
+   - Tab 2: 🔋 QUẢN LÝ PIN BMU / BMS (nạp từ gui_bmu.py)
+   - Tab 3: ⚡ HỆ THỐNG NGUỒN & PDU (nạp từ gui_power.py)
+   - Tab 4: 🎯 BỘ TRUYỀN ĐỘNG MLD (nạp từ gui_mld.py)
+4. Thanh công cụ tiện ích mở rộng: Datalogger BlackBox, Terminal Modbus HEX
+5. Hàng đợi đa luồng thread-safe phân phối dữ liệu telemetry đồng bộ, chống giật lag.
 """
 
 import os
@@ -34,29 +35,30 @@ from gui_bmu import BMUTabFrame
 from gui_power import PowerTabFrame
 from gui_mld import MLDTabFrame
 
-# Bảng màu chuẩn Viettel Red
-VIETTEL_RED = "#EE0033"
-VIETTEL_RED_HOVER = "#C4002A"
-VIETTEL_RED_LIGHT = "#FF335C"
-VIETTEL_PANEL_BG = "#1A1416"
-VIETTEL_CARD_BG = "#221A1D"
-VIETTEL_BORDER = "#42252A"
-VIETTEL_TEXT_WHITE = "#FFFFFF"
-VIETTEL_TEXT_GRAY = "#B5A7AA"
+from viettel_theme import (
+    COLOR_BG, COLOR_HEADER_BG, COLOR_PANEL_BG, COLOR_CARD_BG, COLOR_CARD_BG_HOVER,
+    COLOR_CARD_INNER, COLOR_BORDER, COLOR_BORDER_SUBTLE, COLOR_BORDER_RED,
+    VIETTEL_RED, VIETTEL_RED_HOVER, VIETTEL_RED_LIGHT, VIETTEL_RED_GLOW,
+    COLOR_SUCCESS, COLOR_SUCCESS_HOVER, COLOR_SUCCESS_GLOW, COLOR_CYAN,
+    COLOR_WARNING, COLOR_WARNING_LIGHT, COLOR_CRITICAL, COLOR_BLUE_SEL,
+    COLOR_TEXT_WHITE, COLOR_TEXT_GRAY, COLOR_TEXT_MUTED,
+    font_brand, font_section_title, font_card_label, font_digital_sm, font_mono, font_btn,
+    font_body, FONT_PRIMARY, safe_configure_label
+)
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 
 class ViettelMainApp(ctk.CTk):
-    """Cửa sổ ứng dụng chính kết hợp 3 module: ESC, BMU và POWER"""
+    """Cửa sổ ứng dụng chính kết hợp 4 module: ESC, BMU, POWER và MLD chuẩn sản xuất"""
     def __init__(self):
         super().__init__()
 
-        self.title("VIETTEL SYSTEM - HỆ THỐNG QUẢN LÝ ESC / BMU / POWER")
-        self.geometry("1400x900")
-        self.minsize(1150, 760)
-        self.configure(fg_color="#120E10")
+        self.title("VIETTEL HIGH-TECH — HỆ THỐNG ĐIỀU KHIỂN & GIÁM SÁT ESC / BMU / POWER / MLD")
+        self.geometry("1420x920")
+        self.minsize(1180, 780)
+        self.configure(fg_color=COLOR_BG)
 
         # Khởi tạo cơ sở dữ liệu và truyền thông Modbus RTU
         self.db = MGMDatabase()
@@ -75,7 +77,7 @@ class ViettelMainApp(ctk.CTk):
             except Exception:
                 pass
 
-        # Xây dựng giao diện
+        # Xây dựng giao diện chuẩn SCADA quân sự / công nghiệp
         self._build_header_bar()
         self._build_main_tabview()
         self._build_status_bar()
@@ -86,24 +88,25 @@ class ViettelMainApp(ctk.CTk):
 
         self._refresh_ports()
         self._process_queues()
+        self._update_clock()
 
         # Mặc định kích hoạt chế độ mô phỏng
         self.sim_switch.select()
         self._toggle_connection()
 
     # =========================================================================
-    # 1. HEADER BAR & CONTROLS (VIETTEL RED THEMED)
+    # 1. HEADER BAR & CONTROLS (VIETTEL AEROSPACE SUITE)
     # =========================================================================
     def _build_header_bar(self):
         self.header_frame = ctk.CTkFrame(
-            self, height=74, corner_radius=0,
-            fg_color=VIETTEL_PANEL_BG, border_width=1, border_color=VIETTEL_BORDER
+            self, height=72, corner_radius=0,
+            fg_color=COLOR_HEADER_BG, border_width=1, border_color=COLOR_BORDER
         )
         self.header_frame.pack(side="top", fill="x", padx=0, pady=0)
 
-        # Viettel Logo + Tiêu đề thương hiệu
+        # Viettel Logo + Tiêu đề thương hiệu chuẩn VMC
         title_box = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-        title_box.pack(side="left", padx=14, pady=8)
+        title_box.pack(side="left", padx=(14, 8), pady=8)
 
         logo_path = os.path.join(os.path.dirname(__file__), "viettel_logo.png")
         if os.path.exists(logo_path):
@@ -118,132 +121,187 @@ class ViettelMainApp(ctk.CTk):
         text_box = ctk.CTkFrame(title_box, fg_color="transparent")
         text_box.pack(side="left")
 
+        title_row = ctk.CTkFrame(text_box, fg_color="transparent")
+        title_row.pack(anchor="w")
+
         lbl_brand = ctk.CTkLabel(
-            text_box, text="VIETTEL VMC",
-            font=ctk.CTkFont(size=17, weight="bold"), text_color=VIETTEL_TEXT_WHITE
+            title_row, text="VIETTEL VMC",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=17, weight="bold"), text_color=COLOR_TEXT_WHITE
         )
-        lbl_brand.pack(anchor="w")
+        lbl_brand.pack(side="left", padx=(0, 6))
+
+        lbl_badge = ctk.CTkLabel(
+            title_row, text="PROD v2.5",
+            font=ctk.CTkFont(family="Consolas", size=9, weight="bold"),
+            fg_color=COLOR_CARD_INNER, text_color=COLOR_CYAN,
+            corner_radius=4, padx=5, pady=1
+        )
+        lbl_badge.pack(side="left")
 
         sub_row = ctk.CTkFrame(text_box, fg_color="transparent")
-        sub_row.pack(anchor="w")
+        sub_row.pack(anchor="w", pady=(1, 0))
         lbl_sub = ctk.CTkLabel(
-            sub_row, text="ESC / BMU / POWER MANAGEMENT",
-            font=ctk.CTkFont(size=11, weight="bold"), text_color=VIETTEL_RED
+            sub_row, text="PROPULSION & POWER SUITE",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"), text_color=VIETTEL_RED_LIGHT
         )
         lbl_sub.pack(side="left")
-        lbl_ver = ctk.CTkLabel(
-            sub_row, text=" | Port 11: 921600-8-N-1 (ID=1, SR=500ms)",
-            font=ctk.CTkFont(size=11), text_color=VIETTEL_TEXT_GRAY
+
+        # Cụm điều khiển Serial & Modbus RTU
+        comm_box = ctk.CTkFrame(
+            self.header_frame, fg_color=COLOR_CARD_BG, corner_radius=6,
+            border_width=1, border_color=COLOR_BORDER
         )
-        lbl_ver.pack(side="left")
+        comm_box.pack(side="left", padx=8, pady=8)
 
-        # Cấu hình Cổng Serial (Port COM11, Baudrate 921600-8-N-1)
-        conn_frame = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-        conn_frame.pack(side="left", padx=12, pady=8)
+        # Hàng trên của comm_box: tiêu đề nhỏ
+        c_title_row = ctk.CTkFrame(comm_box, fg_color="transparent")
+        c_title_row.pack(fill="x", padx=8, pady=(4, 1))
         ctk.CTkLabel(
-            conn_frame, text="Cổng Serial & Baudrate (8-N-1):",
-            font=ctk.CTkFont(size=11), text_color=VIETTEL_TEXT_GRAY
-        ).pack(anchor="w")
+            c_title_row, text="KẾT NỐI TRUYỀN THÔNG (MODBUS RTU 921600-8-N-1)",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=9, weight="bold"), text_color=COLOR_TEXT_GRAY
+        ).pack(side="left")
 
-        port_row = ctk.CTkFrame(conn_frame, fg_color="transparent")
-        port_row.pack(anchor="w", pady=2)
-        self.cb_port = ctk.CTkComboBox(port_row, values=["COM11"], width=105, border_color=VIETTEL_BORDER)
+        # Hàng dưới của comm_box: các ô chọn
+        c_ctrl_row = ctk.CTkFrame(comm_box, fg_color="transparent")
+        c_ctrl_row.pack(fill="x", padx=8, pady=(0, 6))
+
+        # Port selector
+        self.cb_port = ctk.CTkComboBox(
+            c_ctrl_row, values=["COM11"], width=105, height=28,
+            border_color=COLOR_BORDER, fg_color=COLOR_CARD_INNER,
+            button_color="#223042", button_hover_color="#33465C",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11)
+        )
         self.cb_port.set("COM11")
-        self.cb_port.pack(side="left", padx=(0, 4))
+        self.cb_port.pack(side="left", padx=(0, 3))
 
         self.btn_refresh_ports = ctk.CTkButton(
-            port_row, text="↻", width=28, fg_color="#332427", hover_color="#4D353A",
-            command=self._refresh_ports
+            c_ctrl_row, text="↻", width=28, height=28, fg_color="#223042", hover_color="#33465C",
+            font=ctk.CTkFont(size=12, weight="bold"), command=self._refresh_ports
         )
-        self.btn_refresh_ports.pack(side="left", padx=(0, 4))
+        self.btn_refresh_ports.pack(side="left", padx=(0, 6))
 
+        # Baudrate selector
         self.cb_baud = ctk.CTkComboBox(
-            port_row,
+            c_ctrl_row,
             values=["9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600"],
-            width=95, border_color=VIETTEL_BORDER
+            width=95, height=28, border_color=COLOR_BORDER, fg_color=COLOR_CARD_INNER,
+            button_color="#223042", button_hover_color="#33465C",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11)
         )
         self.cb_baud.set("921600")
-        self.cb_baud.pack(side="left")
+        self.cb_baud.pack(side="left", padx=(0, 8))
 
-        # Slave ID & Scan Rate (SR)
-        mb_frame = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-        mb_frame.pack(side="left", padx=10, pady=8)
+        # Slave ID
         ctk.CTkLabel(
-            mb_frame, text="Slave ID & Scan Rate:",
-            font=ctk.CTkFont(size=11), text_color=VIETTEL_TEXT_GRAY
-        ).pack(anchor="w")
+            c_ctrl_row, text="ID:", font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"),
+            text_color=COLOR_TEXT_WHITE
+        ).pack(side="left", padx=(0, 2))
 
-        mb_row = ctk.CTkFrame(mb_frame, fg_color="transparent")
-        mb_row.pack(anchor="w", pady=2)
-        ctk.CTkLabel(mb_row, text="ID:", font=ctk.CTkFont(size=11, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(side="left", padx=(0, 3))
-        self.ent_slave_id = ctk.CTkEntry(mb_row, width=45, border_color=VIETTEL_BORDER)
+        self.ent_slave_id = ctk.CTkEntry(
+            c_ctrl_row, width=38, height=28, border_color=COLOR_BORDER, fg_color=COLOR_CARD_INNER,
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11)
+        )
         self.ent_slave_id.insert(0, "1")
         self.ent_slave_id.pack(side="left", padx=(0, 8))
 
-        ctk.CTkLabel(mb_row, text="SR (ms):", font=ctk.CTkFont(size=11, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(side="left", padx=(0, 3))
-        self.cb_sr = ctk.CTkComboBox(mb_row, values=["100", "200", "500", "1000"], width=75, border_color=VIETTEL_BORDER, command=self._on_sr_changed)
+        # Scan Rate
+        ctk.CTkLabel(
+            c_ctrl_row, text="SR:", font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"),
+            text_color=COLOR_TEXT_WHITE
+        ).pack(side="left", padx=(0, 2))
+
+        self.cb_sr = ctk.CTkComboBox(
+            c_ctrl_row, values=["100", "200", "500", "1000"], width=72, height=28,
+            border_color=COLOR_BORDER, fg_color=COLOR_CARD_INNER,
+            button_color="#223042", button_hover_color="#33465C",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11),
+            command=self._on_sr_changed
+        )
         self.cb_sr.set("500")
         self.cb_sr.pack(side="left")
 
-        # Tiện ích bổ trợ (Tools: Terminal, Datalogger, Params)
-        tools_frame = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-        tools_frame.pack(side="left", padx=10, pady=8)
-        ctk.CTkLabel(tools_frame, text="Công cụ bổ trợ:", font=ctk.CTkFont(size=11), text_color=VIETTEL_TEXT_GRAY).pack(anchor="w")
+        # Cụm Tiện ích bổ trợ (Tools: Terminal, BlackBox)
+        tools_box = ctk.CTkFrame(
+            self.header_frame, fg_color=COLOR_CARD_BG, corner_radius=6,
+            border_width=1, border_color=COLOR_BORDER
+        )
+        tools_box.pack(side="left", padx=8, pady=8)
 
-        t_row = ctk.CTkFrame(tools_frame, fg_color="transparent")
-        t_row.pack(anchor="w", pady=2)
+        t_title_row = ctk.CTkFrame(tools_box, fg_color="transparent")
+        t_title_row.pack(fill="x", padx=8, pady=(4, 1))
+        ctk.CTkLabel(
+            t_title_row, text="CÔNG CỤ PHÂN TÍCH",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=9, weight="bold"), text_color=COLOR_TEXT_GRAY
+        ).pack(side="left")
+
+        t_row = ctk.CTkFrame(tools_box, fg_color="transparent")
+        t_row.pack(fill="x", padx=8, pady=(0, 6))
+
         self.btn_term_tool = ctk.CTkButton(
-            t_row, text="💻 Terminal HEX", width=110, fg_color="#332427", hover_color="#4D353A",
-            font=ctk.CTkFont(size=11), command=self._open_terminal_window
+            t_row, text="💻 Terminal HEX", width=110, height=28, fg_color="#223042", hover_color="#33465C",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11), command=self._open_terminal_window
         )
         self.btn_term_tool.pack(side="left", padx=(0, 4))
 
         self.btn_hist_tool = ctk.CTkButton(
-            t_row, text="📈 BlackBox", width=95, fg_color="#332427", hover_color="#4D353A",
-            font=ctk.CTkFont(size=11), command=self._open_blackbox_window
+            t_row, text="📈 BlackBox", width=95, height=28, fg_color="#223042", hover_color="#33465C",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11), command=self._open_blackbox_window
         )
         self.btn_hist_tool.pack(side="left")
 
-        # Chuyển đổi mô phỏng & Nút kết nối màu đỏ Viettel
+        # Cụm Điều khiển Kết nối (Simulator + Connect Button) bên phải
         ctrl_frame = ctk.CTkFrame(self.header_frame, fg_color="transparent")
         ctrl_frame.pack(side="right", padx=14, pady=8)
 
-        self.sim_switch = ctk.CTkSwitch(
-            ctrl_frame, text="Chế độ Mô phỏng (Simulator)",
-            progress_color=VIETTEL_RED, font=ctk.CTkFont(size=12)
+        ctrl_top = ctk.CTkFrame(ctrl_frame, fg_color="transparent")
+        ctrl_top.pack(anchor="e", pady=(0, 3))
+
+        # Đèn báo LED trạng thái
+        self.lbl_led_status = ctk.CTkLabel(
+            ctrl_top, text="● SẴN SÀNG",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"),
+            text_color=COLOR_SUCCESS_GLOW, fg_color=COLOR_CARD_INNER,
+            corner_radius=4, padx=6, pady=2
         )
-        self.sim_switch.pack(side="top", anchor="e", pady=(0, 4))
+        self.lbl_led_status.pack(side="left", padx=(0, 10))
+
+        self.sim_switch = ctk.CTkSwitch(
+            ctrl_top, text="Mô phỏng (Simulator)",
+            progress_color=VIETTEL_RED, font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold")
+        )
+        self.sim_switch.pack(side="left")
 
         self.btn_connect = ctk.CTkButton(
-            ctrl_frame, text="Kết nối (Connect)", width=150,
+            ctrl_frame, text="⚡ KẾT NỐI (CONNECT)", width=170, height=32,
             fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER,
-            font=ctk.CTkFont(size=12, weight="bold"), command=self._toggle_connection
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=12, weight="bold"), command=self._toggle_connection
         )
-        self.btn_connect.pack(side="top", anchor="e")
+        self.btn_connect.pack(anchor="e")
 
     # =========================================================================
-    # 2. MAIN TABVIEW: 3 TAB QUẢN LÝ (ESC, BMU, POWER) TỪ 3 FILE RIÊNG BIỆT
+    # 2. MAIN TABVIEW: 4 TAB QUẢN LÝ (ESC, BMU, POWER, MLD)
     # =========================================================================
     def _build_main_tabview(self):
         self.tabview = ctk.CTkTabview(
             self,
-            corner_radius=10,
+            corner_radius=8,
             command=self._on_tab_changed,
-            fg_color=VIETTEL_PANEL_BG,
+            fg_color=COLOR_PANEL_BG,
             segmented_button_selected_color=VIETTEL_RED,
             segmented_button_selected_hover_color=VIETTEL_RED_HOVER,
-            segmented_button_unselected_color="#2A2022",
-            segmented_button_unselected_hover_color="#3D2B2E"
+            segmented_button_unselected_color=COLOR_CARD_BG,
+            segmented_button_unselected_hover_color=COLOR_CARD_BG_HOVER
         )
-        self.tabview.pack(fill="both", expand=True, padx=10, pady=(4, 4))
+        self.tabview.pack(fill="both", expand=True, padx=8, pady=(4, 4))
 
-        # 4 Tab quản lý chuyên biệt theo yêu cầu
-        self.tab_esc_container = self.tabview.add("🚀 QUẢN LÝ ESC / ĐỘNG CƠ (ESC)")
-        self.tab_bmu_container = self.tabview.add("🔋 QUẢN LÝ BMU / PIN (BMU)")
-        self.tab_power_container = self.tabview.add("⚡ HỆ THỐNG NGUỒN & PHÂN PHỐI (POWER)")
-        self.tab_mld_container = self.tabview.add("🎯 BỘ ĐIỀU KHIỂN MLD (MLD)")
+        # 4 Tab quản lý chuyên biệt theo chuẩn hệ thống Viettel
+        self.tab_esc_container = self.tabview.add("🚀 ĐIỀU TỐC ESC / BLDC")
+        self.tab_bmu_container = self.tabview.add("🔋 QUẢN LÝ PIN BMU / BMS")
+        self.tab_power_container = self.tabview.add("⚡ HỆ THỐNG NGUỒN & PDU")
+        self.tab_mld_container = self.tabview.add("🎯 BỘ TRUYỀN ĐỘNG MLD")
 
-        # Khởi tạo và nhúng 4 View từ 4 file riêng biệt
+        # Khởi tạo và nhúng 4 View từ 4 module chuyên biệt
         self.view_esc = ESCTabFrame(self.tab_esc_container, conn=self.conn)
         self.view_esc.pack(fill="both", expand=True)
 
@@ -290,22 +348,59 @@ class ViettelMainApp(ctk.CTk):
                 self.view_mld.update_telemetry(last_d)
 
     # =========================================================================
-    # 3. STATUS BAR
+    # 3. STATUS BAR (AEROSPACE SCADA FOOTER)
     # =========================================================================
     def _build_status_bar(self):
-        self.status_bar = ctk.CTkFrame(self, height=28, corner_radius=0, fg_color="#181214", border_width=1, border_color=VIETTEL_BORDER)
+        self.status_bar = ctk.CTkFrame(
+            self, height=30, corner_radius=0,
+            fg_color=COLOR_HEADER_BG, border_width=1, border_color=COLOR_BORDER
+        )
         self.status_bar.pack(side="bottom", fill="x")
 
-        self.lbl_status = ctk.CTkLabel(self.status_bar, text="● Chưa kết nối", font=ctk.CTkFont(size=11, weight="bold"), text_color=VIETTEL_TEXT_GRAY)
-        self.lbl_status.pack(side="left", padx=15)
+        # Trạng thái kết nối
+        self.lbl_status = ctk.CTkLabel(
+            self.status_bar, text="● Chưa kết nối",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"), text_color=COLOR_TEXT_GRAY
+        )
+        self.lbl_status.pack(side="left", padx=14)
 
+        # Thông số truyền thông
         self.lbl_port_spec = ctk.CTkLabel(
             self.status_bar,
-            text="Port 11: 921600-8-N-1  |  ID = 1  |  F=03 Read (11) / F=16 Write (2)  |  SR = 500ms  |  3 Modules: ESC - BMU - POWER",
-            font=ctk.CTkFont(family="Consolas", size=11, weight="bold"),
-            text_color=VIETTEL_RED_LIGHT
+            text="Port 11: 921600-8-N-1  |  ID = 1  |  F=03 Read (11) / F=16 Write (2)  |  SR = 500ms",
+            font=ctk.CTkFont(family="Consolas", size=10, weight="bold"),
+            text_color=COLOR_TEXT_MUTED
         )
-        self.lbl_port_spec.pack(side="right", padx=15)
+        self.lbl_port_spec.pack(side="left", padx=15)
+
+        # Division branding + Real-time Clock
+        right_box = ctk.CTkFrame(self.status_bar, fg_color="transparent")
+        right_box.pack(side="right", padx=14)
+
+        lbl_div = ctk.CTkLabel(
+            right_box, text="VIETTEL HIGH-TECH • AEROSPACE SUITE |",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=10, weight="bold"),
+            text_color=COLOR_TEXT_MUTED
+        )
+        lbl_div.pack(side="left", padx=(0, 6))
+
+        self.lbl_clock = ctk.CTkLabel(
+            right_box, text="00:00:00",
+            font=ctk.CTkFont(family="Consolas", size=11, weight="bold"),
+            text_color=COLOR_CYAN
+        )
+        self.lbl_clock.pack(side="left")
+
+    def _update_clock(self):
+        """Cập nhật đồng hồ thời gian thực mỗi giây"""
+        try:
+            curr_time = time.strftime("%H:%M:%S")
+            self.lbl_clock.configure(text=curr_time)
+        except Exception:
+            pass
+        finally:
+            if self.winfo_exists():
+                self.after(1000, self._update_clock)
 
     # =========================================================================
     # 4. EVENT HANDLERS & CALLBACKS
@@ -331,7 +426,10 @@ class ViettelMainApp(ctk.CTk):
     def _toggle_connection(self):
         if self.conn.is_connected:
             self.conn.disconnect()
-            self.btn_connect.configure(text="Kết nối (Connect)", fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER)
+            self.btn_connect.configure(
+                text="⚡ KẾT NỐI (CONNECT)", fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER
+            )
+            self.lbl_led_status.configure(text="○ OFFLINE", text_color=COLOR_TEXT_MUTED)
         else:
             use_sim = bool(self.sim_switch.get())
             port = self.cb_port.get().strip()
@@ -346,17 +444,25 @@ class ViettelMainApp(ctk.CTk):
                 sr = 500
             ok = self.conn.connect(port=port, baud=baud, use_simulator=use_sim, slave_id=sid, scan_rate_ms=sr)
             if ok:
-                self.btn_connect.configure(text="Ngắt kết nối (Disconnect)", fg_color="#C85A17", hover_color="#9A4511")
+                self.btn_connect.configure(
+                    text="🔌 NGẮT KẾT NỐI", fg_color="#C85A17", hover_color="#9A4511"
+                )
+                self.lbl_led_status.configure(
+                    text="● TRỰC TUYẾN" if not use_sim else "● MÔ PHỎNG",
+                    text_color=COLOR_SUCCESS_GLOW
+                )
                 port_num = port.replace("COM", "Port ") if port.startswith("COM") else port
                 self.lbl_port_spec.configure(
-                    text=f"{port_num}: {baud}-8-N-1  |  ID = {sid}  |  F=03 Read (11) / F=16 Write (2)  |  SR = {sr}ms"
+                    text=f"{port_num}: {baud}-8-N-1  |  ID = {sid}  |  SR = {sr}ms"
                 )
 
     def _on_status_changed(self, connected: bool, desc: str):
         if connected:
-            self.lbl_status.configure(text=f"● Đã kết nối: {desc}", text_color="#2FA572")
+            self.lbl_status.configure(text=f"● Đã kết nối: {desc}", text_color=COLOR_SUCCESS)
+            self.lbl_led_status.configure(text="● TRỰC TUYẾN", text_color=COLOR_SUCCESS_GLOW)
         else:
-            self.lbl_status.configure(text="● Chưa kết nối (Disconnected)", text_color=VIETTEL_TEXT_GRAY)
+            self.lbl_status.configure(text="● Chưa kết nối (Disconnected)", text_color=COLOR_TEXT_GRAY)
+            self.lbl_led_status.configure(text="○ OFFLINE", text_color=COLOR_TEXT_MUTED)
 
     def _on_log_received(self, msg: str, level: str):
         t_str = time.strftime("%H:%M:%S")
@@ -374,7 +480,7 @@ class ViettelMainApp(ctk.CTk):
                 self._last_telemetry = latest_d
                 sel = self.tabview.get() if hasattr(self, 'tabview') else ""
 
-                # Chỉ phân phối telemetry tới Tab đang mở để tối ưu tài nguyên và chống giật lag
+                # Phân phối telemetry tới Tab đang mở
                 if "POWER" in sel and hasattr(self, 'view_power') and self.view_power.winfo_exists():
                     self.view_power.update_telemetry(latest_d)
                 elif "ESC" in sel and hasattr(self, 'view_esc') and self.view_esc.winfo_exists():
@@ -384,11 +490,9 @@ class ViettelMainApp(ctk.CTk):
                 elif "MLD" in sel and hasattr(self, 'view_mld') and self.view_mld.winfo_exists():
                     self.view_mld.update_telemetry(latest_d)
 
-                # Nếu Tab ESC đang bật chế độ Ghi log CSV thì vẫn ghi file ngầm (không cần vẽ GUI)
+                # Ghi file ngầm nếu bật log CSV
                 if "ESC" not in sel and hasattr(self, 'view_esc') and getattr(self.view_esc, 'recording_file', None):
                     self.view_esc.log_csv_record(latest_d)
-
-                # Nếu Tab MLD đang bật chế độ Ghi log CSV thì vẫn ghi file ngầm
                 if "MLD" not in sel and hasattr(self, 'view_mld') and getattr(self.view_mld, 'recording_file', None):
                     self.view_mld.log_csv_record(latest_d)
 
@@ -409,26 +513,38 @@ class ViettelMainApp(ctk.CTk):
     def _open_terminal_window(self):
         """Mở cửa sổ Terminal Modbus HEX để debug bản tin thô"""
         term_win = ctk.CTkToplevel(self)
-        term_win.title("Terminal Modbus HEX - Debug Truyền Thông Viettel")
-        term_win.geometry("720x450")
-        term_win.configure(fg_color="#181214")
+        term_win.title("Terminal Modbus HEX — Viettel High-Tech Diagnostics")
+        term_win.geometry("740x480")
+        term_win.configure(fg_color=COLOR_BG)
 
-        top_row = ctk.CTkFrame(term_win, height=36, fg_color="transparent")
-        top_row.pack(fill="x", padx=10, pady=8)
+        top_row = ctk.CTkFrame(term_win, height=40, fg_color=COLOR_HEADER_BG, border_width=1, border_color=COLOR_BORDER)
+        top_row.pack(fill="x", padx=10, pady=(10, 6))
 
-        ctk.CTkLabel(top_row, text="Gửi bản tin HEX:", font=ctk.CTkFont(size=11, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(side="left")
-        ent_hex = ctk.CTkEntry(top_row, width=320, placeholder_text="01 03 00 00 00 0B 04 0D", border_color=VIETTEL_BORDER)
+        ctk.CTkLabel(
+            top_row, text="Bản tin HEX:", font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"),
+            text_color=COLOR_TEXT_WHITE
+        ).pack(side="left", padx=10)
+
+        ent_hex = ctk.CTkEntry(
+            top_row, width=360, placeholder_text="01 03 00 00 00 0B 04 0D",
+            border_color=COLOR_BORDER, fg_color=COLOR_CARD_INNER, font=ctk.CTkFont(family="Consolas", size=11)
+        )
         ent_hex.pack(side="left", padx=8)
 
         btn_send = ctk.CTkButton(
-            top_row, text="Gửi", width=70, fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER,
+            top_row, text="GỬI (TX)", width=80, fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER,
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"),
             command=lambda: self._send_term_hex(ent_hex.get().strip())
         )
-        btn_send.pack(side="left")
+        btn_send.pack(side="left", padx=6)
 
-        self._txt_term = ctk.CTkTextbox(term_win, font=ctk.CTkFont(family="Consolas", size=11), fg_color="#120D0F", text_color="#E0E0E0", border_width=1, border_color=VIETTEL_BORDER)
+        self._txt_term = ctk.CTkTextbox(
+            term_win, font=ctk.CTkFont(family="Consolas", size=11),
+            fg_color=COLOR_CARD_INNER, text_color="#E2E8F0",
+            border_width=1, border_color=COLOR_BORDER
+        )
         self._txt_term.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        self._txt_term.insert("end", "=== VIETTEL MODBUS RTU TERMINAL INITIALIZED ===\n")
+        self._txt_term.insert("end", "=== VIETTEL HIGH-TECH MODBUS RTU TERMINAL INITIALIZED ===\n")
 
     def _send_term_hex(self, hex_str: str):
         if not hex_str:
@@ -448,32 +564,47 @@ class ViettelMainApp(ctk.CTk):
     def _open_blackbox_window(self):
         """Mở cửa sổ phân tích Datalogger BlackBox"""
         bbox_win = ctk.CTkToplevel(self)
-        bbox_win.title("Phân Tích Datalogger BlackBox - Viettel Propulsion")
-        bbox_win.geometry("800x480")
-        bbox_win.configure(fg_color="#181214")
+        bbox_win.title("Nhật Ký Chuyến Bay BlackBox — Viettel Propulsion")
+        bbox_win.geometry("820x500")
+        bbox_win.configure(fg_color=COLOR_BG)
 
-        ctk.CTkLabel(bbox_win, text="📊 DỮ LIỆU CHUYẾN BAY & NHẬT KÝ VẬN HÀNH BLACKBOX", font=ctk.CTkFont(size=13, weight="bold"), text_color=VIETTEL_RED_LIGHT).pack(padx=12, pady=10, anchor="w")
+        header = ctk.CTkFrame(bbox_win, fg_color=COLOR_HEADER_BG, height=44, border_width=1, border_color=COLOR_BORDER)
+        header.pack(fill="x", padx=10, pady=(10, 6))
 
-        info_box = ctk.CTkFrame(bbox_win, fg_color=VIETTEL_CARD_BG, corner_radius=6, border_width=1, border_color=VIETTEL_BORDER)
-        info_box.pack(fill="x", padx=12, pady=6)
+        ctk.CTkLabel(
+            header, text="📊 DỮ LIỆU CHUYẾN BAY & NHẬT KÝ VẬN HÀNH BLACKBOX",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=13, weight="bold"), text_color=VIETTEL_RED_LIGHT
+        ).pack(side="left", padx=12, pady=8)
+
+        info_box = ctk.CTkFrame(
+            bbox_win, fg_color=COLOR_CARD_BG, corner_radius=6, border_width=1, border_color=COLOR_BORDER
+        )
+        info_box.pack(fill="x", padx=10, pady=6)
 
         stats_text = (
             "Dung lượng bộ nhớ Flash: 128 MB (Đã dùng 34.2 MB - 26%)\n"
             "Tần số ghi log nội bộ: 50 Hz (V, I, RPM, Id, Iq, Temps, Pack V, Contactor State)\n"
             "Số chuyến bay đã ghi nhận: 18 chuyến bay | Tổng thời gian vận hành: 14 giờ 22 phút"
         )
-        ctk.CTkLabel(info_box, text=stats_text, font=ctk.CTkFont(family="Consolas", size=11), text_color=VIETTEL_TEXT_WHITE, justify="left").pack(padx=12, pady=10, anchor="w")
+        ctk.CTkLabel(
+            info_box, text=stats_text, font=ctk.CTkFont(family="Consolas", size=11),
+            text_color=COLOR_TEXT_WHITE, justify="left"
+        ).pack(padx=14, pady=12, anchor="w")
 
         btn_row = ctk.CTkFrame(bbox_win, fg_color="transparent")
-        btn_row.pack(fill="x", padx=12, pady=8)
+        btn_row.pack(fill="x", padx=10, pady=8)
 
         ctk.CTkButton(
-            btn_row, text="📥 Tải Dữ Liệu Từ ESC Flash", width=200, fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER,
+            btn_row, text="📥 Tải Dữ Liệu Từ ESC Flash", width=200, height=34,
+            fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER,
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"),
             command=lambda: messagebox.showinfo("BlackBox", "Đã tải xong nhật ký vận hành từ bộ nhớ Flash!")
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
-            btn_row, text="📂 Mở File CSV BlackBox...", width=180, fg_color="#332427", hover_color="#4D353A",
+            btn_row, text="📂 Mở File CSV BlackBox...", width=180, height=34,
+            fg_color="#223042", hover_color="#33465C",
+            font=ctk.CTkFont(family=FONT_PRIMARY, size=11, weight="bold"),
             command=lambda: messagebox.showinfo("BlackBox", "Vui lòng chọn file CSV để phân tích đồ thị!")
         ).pack(side="left")
 

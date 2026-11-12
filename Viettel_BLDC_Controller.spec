@@ -26,6 +26,7 @@ hiddenimports = [
     'gui_bmu',
     'gui_power',
     'gui_mld',
+    'viettel_theme',
     'mgm_comm',
     'mgm_data',
     'serial',
