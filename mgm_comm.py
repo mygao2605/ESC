@@ -98,11 +98,11 @@ POWER_READ_REGISTERS = [
 POWER_WRITE_REGISTERS = [
     {"index": 0, "name": "State",        "unit": "0/1", "desc": "Trạng thái Bật/Tắt nguồn (0: TẮT, 1: BẬT)"},
     {"index": 1, "name": "Protect Time", "unit": "ms",  "desc": "Thời gian bảo vệ ngắt"},
-    {"index": 2, "name": "RampMax",      "unit": "",    "desc": "Tốc độ tăng dốc tối đa"},
-    {"index": 3, "name": "RampDec",      "unit": "",    "desc": "Tốc độ giảm dốc"},
-    {"index": 4, "name": "V_in(mV)",     "unit": "mV",  "desc": "Điện áp ngõ vào"},
-    {"index": 5, "name": "V_out(mV)",    "unit": "mV",  "desc": "Điện áp ngõ ra đặt"},
-    {"index": 6, "name": "I_out(mV)",    "unit": "mV",  "desc": "Dòng điện ngõ ra đặt"},
+    {"index": 2, "name": "RampMax",      "unit": "",    "desc": "Giá trị đặt Iin"},
+    {"index": 3, "name": "RampDec",      "unit": "",    "desc": "Giá trị bù dốc"},
+    {"index": 4, "name": "V_in(mV)",     "unit": "mV",  "desc": "V_in đo"},
+    {"index": 5, "name": "V_out(mV)",    "unit": "mV",  "desc": "V_out đo"},
+    {"index": 6, "name": "I_out(mV)",    "unit": "mV",  "desc": "I_out đo"},
     {"index": 7, "name": "ErrorCode",    "unit": "HEX", "desc": "Mã lỗi điều khiển"},
     {"index": 8, "name": "FanSpeed",     "unit": "RPM", "desc": "Tốc độ quạt làm mát"},
     {"index": 9, "name": "DeadTime",     "unit": "ns",  "desc": "Thời gian chết MOSFET"},
@@ -547,16 +547,11 @@ class MGMSimulator:
 
         # Mô phỏng Bộ điều khiển MLD (7 thanh ghi đọc, 4 thanh ghi ghi)
         self._mld_test_timer += dt
-        target_pos = float(self.mld_set_position)
+        target_pos = float(max(-1700, min(1700, self.mld_set_position)))
         if self.mld_state == 1:
             if self.mld_sel_test == 1:
-                step_period = max(0.5, self.mld_period_ms / 1000.0)
-                target_pos = 90.0 if (int(self._mld_test_timer / step_period) % 2 == 1) else 0.0
-            elif self.mld_sel_test == 2:
-                freq = 1.0 / max(0.5, self.mld_period_ms / 500.0)
-                target_pos = float(self.mld_set_position) + 30.0 * math.sin(2.0 * math.pi * freq * self._mld_test_timer)
-            elif self.mld_sel_test == 3:
-                target_pos = (self._mld_test_timer * 45.0) % 360.0
+                step_period = max(0.1, self.mld_period_ms / 1000.0)
+                target_pos = 1000.0 if (int(self._mld_test_timer / step_period) % 2 == 1) else -1000.0
 
             pos_diff = target_pos - self._mld_pos_f
             pos_speed = max(-1500.0, min(1500.0, pos_diff * 8.0))
@@ -567,13 +562,13 @@ class MGMSimulator:
             self.mld_read_vdc_bus = 48 + random.randint(-1, 1)
             self.mld_read_error_code = 0
             self.mld_read_set_pos = int(round(target_pos))
-            self.mld_read_hall = ((int(abs(self._mld_pos_f) / 60) % 6) + 1)
+            self.mld_read_hall = ((int(abs(self._mld_pos_f) / 100) % 6) + 1)
         else:
             self.mld_read_state = 0
             self.mld_read_speed = 0
             self.mld_read_vdc_bus = 48
             self.mld_read_error_code = 0
-            self.mld_read_set_pos = self.mld_set_position
+            self.mld_read_set_pos = int(target_pos)
             self.mld_read_position = int(round(self._mld_pos_f))
 
     def get_read_registers_list(self) -> List[int]:
@@ -855,11 +850,12 @@ class MGMConnection:
 
     def write_mld_command(self, set_pos: int, state: int, sel_test: int, period_ms: int, immediate: bool = True) -> bool:
         """Ghi 4 thanh ghi điều khiển MLD qua Modbus Function 16"""
-        vals = [to_int16(set_pos), 1 if int(state) != 0 else 0, to_int16(sel_test), max(10, min(65535, int(period_ms)))]
+        pos_val = max(-1700, min(1700, int(set_pos)))
+        vals = [to_int16(pos_val), 1 if int(state) != 0 else 0, 1 if int(sel_test) != 0 else 0, max(100, min(2000, int(period_ms)))]
         self.hardware_mld_write_regs = list(vals)
         if immediate and self.is_connected:
             self._pending_mld_write = vals
-            self.log(f"MLD: Lệnh ghi F=16: Set_Pos={vals[0]}, State={vals[1]}, Sel_test={vals[2]}, Period={vals[3]}ms", "INFO")
+            self.log(f"MLD: Lệnh ghi F=16: Set_Pos={vals[0]}mm, State={vals[1]}, Sel_test={vals[2]}, Period={vals[3]}ms", "INFO")
             return True
         return False
 

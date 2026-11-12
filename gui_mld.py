@@ -5,17 +5,17 @@ Chịu trách nhiệm:
 1. Giao diện quản lý & điều khiển Bộ điều khiển MLD (MLD Controller).
 2. Bản tin đọc (Read - Modbus Function 03): 7 thanh ghi (2 Byte mỗi thanh ghi):
    - [0] State (Trạng thái)
-   - [1] Position (Vị trí hiện tại)
-   - [2] Vdc_bus (Điện áp nguồn DC Bus)
+   - [1] Position (Vị trí hiện tại, đơn vị mm: -1700 .. 1700)
+   - [2] Vdc_bus (Điện áp nguồn DC Bus, V)
    - [3] Error_code (Mã lỗi)
-   - [4] Set_Position (Vị trí đặt phản hồi về)
-   - [5] Speed (Tốc độ động cơ)
+   - [4] Set_Position (Vị trí đặt phản hồi về, mm)
+   - [5] Speed (Tốc độ động cơ, RPM)
    - [6] Hall_Value (Giá trị cảm biến Hall)
 3. Bản tin ghi (Write - Modbus Function 16): 4 thanh ghi (2 Byte mỗi thanh ghi):
-   - [0] Set_Position (Vị trí đặt mong muốn)
-   - [1] State (Lệnh trạng thái BẬT/TẮT)
-   - [2] Sel_test (Chọn chế độ kiểm tra / thử nghiệm)
-   - [3] Period (ms) (Chu kỳ thời gian thực thi)
+   - [0] Set_Position (Vị trí đặt mong muốn: mm, giới hạn -1700 đến 1700)
+   - [1] State (Lệnh trạng thái BẬT/TẮT: 1 hoặc 0)
+   - [2] Sel_test (Chế độ tự kiểm tra: ON=1 / OFF=0)
+   - [3] Period (ms) (Chu kỳ thời gian thực thi: 100 đến 2000 ms)
 4. Tích hợp đồ thị bám vị trí thời gian thực (Position vs Set_Position Tracking) và ghi log CSV.
 5. Tối ưu chống giật lag / nhấp nháy màn hình (Dirty Checking & Throttled Rendering).
 """
@@ -46,20 +46,20 @@ MODBUS_BLUE_SEL = "#0078D7"
 # BẢNG ĐẶC TẢ 7 THANH GHI BẢN TIN ĐỌC (FUNCTION 03)
 MLD_READ_REGISTERS = [
     {"index": 0, "name": "State", "desc": "Trạng thái hoạt động", "unit": "0: IDLE, 1: RUN, 2: FAULT"},
-    {"index": 1, "name": "Position", "desc": "Vị trí / Góc hiện tại", "unit": "độ / step"},
+    {"index": 1, "name": "Position", "desc": "Vị trí hiện tại", "unit": "mm"},
     {"index": 2, "name": "Vdc_bus", "desc": "Điện áp DC Bus", "unit": "V"},
     {"index": 3, "name": "Error_code", "desc": "Mã lỗi hệ thống", "unit": "0: OK"},
-    {"index": 4, "name": "Set_Position", "desc": "Vị trí đặt đọc về", "unit": "độ / step"},
+    {"index": 4, "name": "Set_Position", "desc": "Vị trí đặt", "unit": "mm"},
     {"index": 5, "name": "Speed", "desc": "Tốc độ động cơ", "unit": "RPM"},
     {"index": 6, "name": "Hall_Value", "desc": "Giá trị cảm biến Hall", "unit": "Mã nhị phân"},
 ]
 
 # BẢNG ĐẶC TẢ 4 THANH GHI BẢN TIN GHI (FUNCTION 16)
 MLD_WRITE_REGISTERS = [
-    {"index": 0, "name": "Set_Position", "desc": "Vị trí đặt mong muốn", "unit": "độ / step", "default": 0},
+    {"index": 0, "name": "Set_Position", "desc": "Vị trí đặt mong muốn", "unit": "mm (-1700..1700)", "default": 0},
     {"index": 1, "name": "State", "desc": "Lệnh trạng thái điều khiển", "unit": "0: TẮT, 1: BẬT", "default": 0},
-    {"index": 2, "name": "Sel_test", "desc": "Chọn chế độ kiểm tra", "unit": "0..3", "default": 0},
-    {"index": 3, "name": "Period (ms)", "desc": "Chu kỳ thực thi", "unit": "ms", "default": 500},
+    {"index": 2, "name": "Sel_test", "desc": "Tự kiểm tra (Self-Test)", "unit": "0: TẮT, 1: BẬT", "default": 0},
+    {"index": 3, "name": "Period (ms)", "desc": "Chu kỳ thực thi", "unit": "100..2000 ms", "default": 500},
 ]
 
 
@@ -193,10 +193,10 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
 
         cards_spec = [
             ("state", "TRẠNG THÁI (STATE)", "IDLE (0)", VIETTEL_TEXT_WHITE, "Thanh ghi 0"),
-            ("position", "VỊ TRÍ THỰC (POS)", "0.0", "#00E676", "Thanh ghi 1 (độ)"),
+            ("position", "VỊ TRÍ THỰC (POS)", "0", "#00E676", "Thanh ghi 1 (mm)"),
             ("vdc_bus", "ĐIỆN ÁP DC (VDC)", "0.0", "#FFD54F", "Thanh ghi 2 (V)"),
             ("error_code", "MÃ LỖI (ERR)", "0 (OK)", "#00E676", "Thanh ghi 3"),
-            ("set_pos_read", "VỊ TRÍ ĐẶT (SET)", "0.0", "#80D8FF", "Thanh ghi 4 (độ)"),
+            ("set_pos_read", "VỊ TRÍ ĐẶT (SET)", "0", "#80D8FF", "Thanh ghi 4 (mm)"),
             ("speed", "TỐC ĐỘ (SPEED)", "0", "#FF8A80", "Thanh ghi 5 (RPM)"),
             ("hall_val", "CẢM BIẾN HALL", "0 (0x00)", "#E040FB", "Thanh ghi 6 (Bits)"),
         ]
@@ -266,16 +266,16 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         
         row_pos_input = ctk.CTkFrame(c0, fg_color="transparent")
         row_pos_input.pack(fill="x", padx=8, pady=2)
-        self.ent_set_position = ctk.CTkEntry(row_pos_input, width=90, font=ctk.CTkFont(family="Consolas", size=12, weight="bold"), border_color=VIETTEL_BORDER)
+        self.ent_set_position = ctk.CTkEntry(row_pos_input, width=75, font=ctk.CTkFont(family="Consolas", size=12, weight="bold"), border_color=VIETTEL_BORDER)
         self.ent_set_position.insert(0, "0")
         self.ent_set_position.pack(side="left", padx=2)
-        ctk.CTkLabel(row_pos_input, text="độ / step", font=ctk.CTkFont(size=10), text_color=VIETTEL_TEXT_GRAY).pack(side="left", padx=4)
+        ctk.CTkLabel(row_pos_input, text="mm (-1700..1700)", font=ctk.CTkFont(size=9), text_color=VIETTEL_TEXT_GRAY).pack(side="left", padx=2)
 
         self.slider_pos = ctk.CTkSlider(
             c0,
-            from_=-180,
-            to=180,
-            number_of_steps=360,
+            from_=-1700,
+            to=1700,
+            number_of_steps=3400,
             command=self._on_pos_slider_moved,
             button_color=VIETTEL_RED,
             button_hover_color=VIETTEL_RED_HOVER,
@@ -287,12 +287,12 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         # Nút vị trí nhanh
         p_row = ctk.CTkFrame(c0, fg_color="transparent")
         p_row.pack(fill="x", padx=6, pady=(0, 6))
-        for p_val in [-90, 0, 90, 180]:
+        for p_val in [-1700, -850, 0, 850, 1700]:
             ctk.CTkButton(
-                p_row, text=f"{p_val}°", width=42, height=20, font=ctk.CTkFont(size=9),
+                p_row, text=f"{p_val}", width=32, height=20, font=ctk.CTkFont(size=8),
                 fg_color="#2A2022", hover_color="#42252A",
                 command=lambda val=p_val: self._preset_pos(val)
-            ).pack(side="left", padx=2, expand=True)
+            ).pack(side="left", padx=1, expand=True)
 
         # CỘT 1: STATE (Thanh ghi 1)
         c1 = ctk.CTkFrame(grid_ctrl, fg_color="#181214", corner_radius=6, border_width=1, border_color="#361E22")
@@ -331,27 +331,36 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         c2 = ctk.CTkFrame(grid_ctrl, fg_color="#181214", corner_radius=6, border_width=1, border_color="#361E22")
         c2.grid(row=0, column=2, padx=4, pady=2, sticky="nsew")
 
-        ctk.CTkLabel(c2, text="3. CHỌN CHẾ ĐỘ (Sel_test)", font=ctk.CTkFont(size=10, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(pady=(6, 2))
+        ctk.CTkLabel(c2, text="3. TỰ KIỂM TRA (Sel_test)", font=ctk.CTkFont(size=10, weight="bold"), text_color=VIETTEL_TEXT_WHITE).pack(pady=(6, 2))
 
-        self.combo_sel_test = ctk.CTkComboBox(
+        self.lbl_cmd_test_badge = ctk.CTkLabel(
             c2,
-            values=[
-                "0: Chế độ Thường (Normal)",
-                "1: Test Bước (Step Test)",
-                "2: Test Hàm Sin (Sine Wave)",
-                "3: Quét Góc (Auto Scan)"
-            ],
-            width=180,
-            height=26,
-            font=ctk.CTkFont(size=10),
-            dropdown_font=ctk.CTkFont(size=10),
-            border_color=VIETTEL_BORDER,
-            command=self._on_sel_test_changed
+            text="SELF-TEST: TẮT (0)",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=VIETTEL_RED
         )
-        self.combo_sel_test.set("0: Chế độ Thường (Normal)")
-        self.combo_sel_test.pack(padx=8, pady=6)
+        self.lbl_cmd_test_badge.pack(pady=4)
 
-        self.lbl_test_mode_desc = ctk.CTkLabel(c2, text="Mã Sel_test = 0 (Thủ công)", font=ctk.CTkFont(size=9), text_color="#A5D6A7")
+        btn_row_test = ctk.CTkFrame(c2, fg_color="transparent")
+        btn_row_test.pack(fill="x", padx=8, pady=4)
+
+        self.btn_test_on = ctk.CTkButton(
+            btn_row_test, text="🟢 BẬT (1)", width=75, height=26,
+            fg_color="#2A2022", hover_color="#1E8E3E",
+            command=lambda: self._set_cmd_sel_test(1)
+        )
+        self.btn_test_on.pack(side="left", padx=3, expand=True)
+
+        self.btn_test_off = ctk.CTkButton(
+            btn_row_test, text="🔴 TẮT (0)", width=75, height=26,
+            fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER,
+            command=lambda: self._set_cmd_sel_test(0)
+        )
+        self.btn_test_off.pack(side="left", padx=3, expand=True)
+
+        self.cmd_sel_test_val = 0
+
+        self.lbl_test_mode_desc = ctk.CTkLabel(c2, text="Sel_test = 0 (Tắt tự kiểm tra)", font=ctk.CTkFont(size=9), text_color="#A5D6A7")
         self.lbl_test_mode_desc.pack(pady=(0, 6))
 
         # CỘT 3: PERIOD (Thanh ghi 3)
@@ -363,19 +372,19 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         row_period = ctk.CTkFrame(c3, fg_color="transparent")
         row_period.pack(fill="x", padx=8, pady=2)
 
-        self.ent_period = ctk.CTkEntry(row_period, width=80, font=ctk.CTkFont(family="Consolas", size=12, weight="bold"), border_color=VIETTEL_BORDER)
+        self.ent_period = ctk.CTkEntry(row_period, width=75, font=ctk.CTkFont(family="Consolas", size=12, weight="bold"), border_color=VIETTEL_BORDER)
         self.ent_period.insert(0, "500")
         self.ent_period.pack(side="left", padx=2)
-        ctk.CTkLabel(row_period, text="ms", font=ctk.CTkFont(size=10), text_color=VIETTEL_TEXT_GRAY).pack(side="left", padx=4)
+        ctk.CTkLabel(row_period, text="ms (100..2000)", font=ctk.CTkFont(size=9), text_color=VIETTEL_TEXT_GRAY).pack(side="left", padx=2)
 
         t_row = ctk.CTkFrame(c3, fg_color="transparent")
         t_row.pack(fill="x", padx=6, pady=(4, 6))
-        for t_val in [100, 200, 500, 1000]:
+        for t_val in [100, 200, 500, 1000, 2000]:
             ctk.CTkButton(
-                t_row, text=f"{t_val}", width=38, height=20, font=ctk.CTkFont(size=9),
+                t_row, text=f"{t_val}", width=32, height=20, font=ctk.CTkFont(size=8),
                 fg_color="#2A2022", hover_color="#42252A",
                 command=lambda val=t_val: self._preset_period(val)
-            ).pack(side="left", padx=2, expand=True)
+            ).pack(side="left", padx=1, expand=True)
 
     # -------------------------------------------------------------------------
     # 4. BẢNG CHI TIẾT 7 THANH GHI ĐỌC & 4 THANH GHI GHI
@@ -504,8 +513,8 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
         for spine in self.ax.spines.values():
             spine.set_color("#4A1B22")
 
-        self.line_pos, = self.ax.plot([], [], label="Position (độ)", color="#00E676", linewidth=1.8)
-        self.line_setpos, = self.ax.plot([], [], label="Set_Position (độ)", color="#FFD54F", linewidth=1.5, linestyle="--")
+        self.line_pos, = self.ax.plot([], [], label="Position (mm)", color="#00E676", linewidth=1.8)
+        self.line_setpos, = self.ax.plot([], [], label="Set_Position (mm)", color="#FFD54F", linewidth=1.5, linestyle="--")
         self.line_speed, = self.ax.plot([], [], label="Speed / 10", color="#4FC3F7", linewidth=1.4)
         self.line_vdc, = self.ax.plot([], [], label="Vdc_bus (V)", color=VIETTEL_RED, linewidth=1.4)
         self.ax.legend(loc="upper left", ncol=4, facecolor="#1E1618", edgecolor=VIETTEL_BORDER, labelcolor=VIETTEL_TEXT_WHITE, fontsize=8)
@@ -519,16 +528,19 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
     # -------------------------------------------------------------------------
     def _on_pos_slider_moved(self, val):
         pos_int = int(round(val))
+        pos_int = max(-1700, min(1700, pos_int))
         self.ent_set_position.delete(0, "end")
         self.ent_set_position.insert(0, str(pos_int))
 
     def _preset_pos(self, val: int):
+        val = max(-1700, min(1700, val))
         self.slider_pos.set(val)
         self.ent_set_position.delete(0, "end")
         self.ent_set_position.insert(0, str(val))
         self._send_write_command()
 
     def _preset_period(self, val: int):
+        val = max(100, min(2000, val))
         self.ent_period.delete(0, "end")
         self.ent_period.insert(0, str(val))
         self._send_write_command()
@@ -545,15 +557,18 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
             self.btn_state_off.configure(fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER)
         self._send_write_command()
 
-    def _on_sel_test_changed(self, choice: str):
-        mode_idx = int(choice.split(":")[0].strip()) if ":" in choice else 0
-        desc_map = {
-            0: "Mã Sel_test = 0 (Thủ công / Vị trí đặt)",
-            1: "Mã Sel_test = 1 (Test đáp ứng Bước - Step)",
-            2: "Mã Sel_test = 2 (Test dao động Sin - Sine)",
-            3: "Mã Sel_test = 3 (Quét góc tự động - Auto Scan)"
-        }
-        self.lbl_test_mode_desc.configure(text=desc_map.get(mode_idx, f"Mã Sel_test = {mode_idx}"))
+    def _set_cmd_sel_test(self, test_val: int):
+        self.cmd_sel_test_val = 1 if test_val != 0 else 0
+        if self.cmd_sel_test_val == 1:
+            self.lbl_cmd_test_badge.configure(text="SELF-TEST: BẬT (1)", text_color="#00E676")
+            self.lbl_test_mode_desc.configure(text="Sel_test = 1 (Bật tự kiểm tra)", text_color="#FFE082")
+            self.btn_test_on.configure(fg_color="#1E8E3E", hover_color="#16692D")
+            self.btn_test_off.configure(fg_color="#2A2022", hover_color="#42252A")
+        else:
+            self.lbl_cmd_test_badge.configure(text="SELF-TEST: TẮT (0)", text_color=VIETTEL_RED)
+            self.lbl_test_mode_desc.configure(text="Sel_test = 0 (Tắt tự kiểm tra)", text_color="#A5D6A7")
+            self.btn_test_on.configure(fg_color="#2A2022", hover_color="#42252A")
+            self.btn_test_off.configure(fg_color=VIETTEL_RED, hover_color=VIETTEL_RED_HOVER)
         self._send_write_command()
 
     def _on_toggle_cyclic_write(self):
@@ -567,16 +582,17 @@ class MLDTabFrame(ctk.CTkScrollableFrame):
             set_pos = int(self.ent_set_position.get().strip())
         except Exception:
             set_pos = 0
+        set_pos = max(-1700, min(1700, set_pos))
+        self.slider_pos.set(set_pos)
+
         state = self.cmd_state_val
-        try:
-            choice = self.combo_sel_test.get()
-            sel_test = int(choice.split(":")[0].strip()) if ":" in choice else 0
-        except Exception:
-            sel_test = 0
+        sel_test = self.cmd_sel_test_val
+
         try:
             period_ms = int(self.ent_period.get().strip())
         except Exception:
             period_ms = 500
+        period_ms = max(100, min(2000, period_ms))
 
         # Cập nhật hiển thị bảng ghi
         vals = [set_pos, state, sel_test, period_ms]
