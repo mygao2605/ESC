@@ -55,7 +55,7 @@ class ViettelMainApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("VIETTEL HIGH-TECH — HỆ THỐNG ĐIỀU KHIỂN & GIÁM SÁT ESC / BMU / POWER / MLD")
+        self.title("VIETTEL VMC - HỆ THỐNG ĐIỀU KHIỂN & GIÁM SÁT ESC / BMU / POWER / MLD")
         self.geometry("1420x920")
         self.minsize(1180, 780)
         self.configure(fg_color=COLOR_BG)
