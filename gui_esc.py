@@ -310,6 +310,7 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
         )
         self.slider_modbus_rpm.set(0)
         self.slider_modbus_rpm.pack(fill="x", padx=8, pady=(2, 4))
+        self.slider_modbus_rpm.bind("<ButtonRelease-1>", lambda e: self._apply_slider_change())
 
         preset_row = ctk.CTkFrame(rpm_slider_box, fg_color="transparent")
         preset_row.pack(fill="x", padx=8, pady=(0, 6))
@@ -330,13 +331,14 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
         action_row = ctk.CTkFrame(ctrl_panel, fg_color="transparent")
         action_row.pack(fill="x", padx=10, pady=(2, 6))
 
-        self.sw_cyclic_write = ctk.CTkSwitch(
-            action_row, text="Tự động gửi F=16 chu kỳ (500ms)",
-            progress_color=VIETTEL_RED, font=ctk.CTkFont(size=10, weight="bold"),
-            command=self._on_cyclic_write_toggled
+        self.sw_send_on_change = ctk.CTkSwitch(
+            action_row, text="Chỉ gửi khi có thay đổi (Ưu tiên nhận)",
+            progress_color=COLOR_SUCCESS, font=ctk.CTkFont(size=10, weight="bold"),
+            command=self._on_send_on_change_toggled
         )
-        self.sw_cyclic_write.select()
-        self.sw_cyclic_write.pack(side="left")
+        self.sw_send_on_change.select()
+        self.sw_send_on_change.pack(side="left")
+        self.sw_cyclic_write = self.sw_send_on_change  # Alias tương thích ngược
 
         self.btn_send_fc16 = ctk.CTkButton(
             action_row, text="⚡ Gửi F=16 ngay", width=140, height=30,
@@ -467,7 +469,7 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
         self.canvas.get_tk_widget().grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
 
     # -------------------------------------------------------------------------
-    # ĐIỀU KHIỂN & GỬI LỆNH MODBUS
+    # ĐIỀU KHIỂN & GỬI LỆNH MODBUS (ƯU TIÊN NHẬN, CHỈ GỬI KHI CÓ THAY ĐỔI)
     # -------------------------------------------------------------------------
     def _quick_set_on_off(self, on_val: int):
         try:
@@ -480,7 +482,7 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
         self.ent_w_onoff.insert(0, str(on_val))
         self.ent_w_rpm.delete(0, "end")
         self.ent_w_rpm.insert(0, str(rpm_val))
-        self.conn.write_control_command(on_val, rpm_val, immediate=True)
+        self.conn.write_control_command(on_val, rpm_val, immediate=True, force=True)
 
     def _set_preset_rpm(self, rpm_val: int):
         self.slider_modbus_rpm.set(rpm_val)
@@ -491,13 +493,28 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
             on_val = int(self.ent_w_onoff.get().strip())
         except Exception:
             on_val = self.conn.current_write_regs[0]
-        self.conn.write_control_command(on_val, rpm_val, immediate=True)
+        self.conn.write_control_command(on_val, rpm_val, immediate=True, force=True)
 
     def _on_modbus_rpm_slider(self, value):
         rpm_val = int(round(value))
         self.lbl_target_rpm_big.configure(text=f"{rpm_val} RPM")
         self.ent_w_rpm.delete(0, "end")
         self.ent_w_rpm.insert(0, str(rpm_val))
+        # Hủy timer cũ nếu đang kéo liên tục để tránh spam lệnh ghi
+        if hasattr(self, '_slider_debounce_id') and self._slider_debounce_id:
+            try:
+                self.after_cancel(self._slider_debounce_id)
+            except Exception:
+                pass
+        # Chỉ gửi bản tin ghi sau 150ms nếu người dùng dừng kéo
+        self._slider_debounce_id = self.after(150, self._apply_slider_change)
+
+    def _apply_slider_change(self):
+        self._slider_debounce_id = None
+        try:
+            rpm_val = int(self.ent_w_rpm.get().strip())
+        except Exception:
+            rpm_val = int(round(self.slider_modbus_rpm.get()))
         try:
             on_val = int(self.ent_w_onoff.get().strip())
         except Exception:
@@ -510,12 +527,21 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
             rpm_val = int(self.ent_w_rpm.get().strip())
             self.slider_modbus_rpm.set(max(0, min(6000, rpm_val)))
             self.lbl_target_rpm_big.configure(text=f"{rpm_val} RPM")
-            self.conn.write_control_command(on_val, rpm_val, immediate=True)
+            self.conn.write_control_command(on_val, rpm_val, immediate=True, force=True)
         except Exception as e:
             messagebox.showerror("Lỗi nhập liệu", f"Giá trị ON/OFF hoặc SpeedRpm phải là số nguyên: {e}")
 
+    def _on_send_on_change_toggled(self):
+        enabled = bool(self.sw_send_on_change.get())
+        self.conn.send_on_change_only = enabled
+        self.conn.cyclic_write_enabled = False  # Đảm bảo không gửi lặp chu kỳ liên tục
+        if enabled:
+            self.conn.log("ESC: Đã BẬT chế độ 'Chỉ gửi khi có thay đổi' (Ưu tiên bản tin nhận)", "INFO")
+        else:
+            self.conn.log("ESC: Đã TẮT tự động gửi (Chỉ gửi F=16 khi ấn nút hoặc nhấn Enter)", "INFO")
+
     def _on_cyclic_write_toggled(self):
-        self.conn.cyclic_write_enabled = bool(self.sw_cyclic_write.get())
+        self._on_send_on_change_toggled()
 
     def _toggle_pause_chart(self):
         self.is_monitoring = not self.is_monitoring

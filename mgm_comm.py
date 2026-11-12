@@ -162,18 +162,32 @@ def parse_fc03_response(frame: bytes, expected_slave: int = 1, expected_count: i
     expected_len = 5 + expected_count * 2
     if len(frame) < expected_len:
         return None
-    frame = frame[:expected_len]
-    if not verify_crc16(frame):
-        return None
-    slave_id, func_code, byte_count = frame[0], frame[1], frame[2]
-    if slave_id != expected_slave or func_code not in (0x03, 0x04) or byte_count != expected_count * 2:
-        return None
-    regs = []
-    for i in range(expected_count):
-        offset = 3 + i * 2
-        raw_val = struct.unpack(">h", frame[offset:offset + 2])[0]
-        regs.append(raw_val)
-    return regs
+    # Quét tìm vị trí header hợp lệ để bỏ qua byte rác hoặc xung nhiễu đường truyền RS485
+    start_idx = 0
+    while start_idx <= len(frame) - expected_len:
+        if frame[start_idx] == expected_slave and frame[start_idx + 1] in (0x03, 0x04) and frame[start_idx + 2] == expected_count * 2:
+            candidate = frame[start_idx:start_idx + expected_len]
+            if verify_crc16(candidate):
+                regs = []
+                for i in range(expected_count):
+                    offset = start_idx + 3 + i * 2
+                    raw_val = struct.unpack(">h", frame[offset:offset + 2])[0]
+                    regs.append(raw_val)
+                return regs
+        start_idx += 1
+
+    # Thử đối chiếu trực tiếp từ đầu frame
+    candidate = frame[:expected_len]
+    if verify_crc16(candidate):
+        slave_id, func_code, byte_count = candidate[0], candidate[1], candidate[2]
+        if slave_id == expected_slave and func_code in (0x03, 0x04) and byte_count == expected_count * 2:
+            regs = []
+            for i in range(expected_count):
+                offset = 3 + i * 2
+                raw_val = struct.unpack(">h", candidate[offset:offset + 2])[0]
+                regs.append(raw_val)
+            return regs
+    return None
 
 
 def build_fc16_request(slave_id: int = 1, start_addr: int = 0, values: List[int] = None) -> bytes:
@@ -191,11 +205,16 @@ def parse_fc16_response(frame: bytes, expected_slave: int = 1, start_addr: int =
     """Kiểm tra phản hồi 8 byte của lệnh Function 16 (0x10)"""
     if len(frame) < 8:
         return False
-    frame = frame[:8]
-    if not verify_crc16(frame):
-        return False
-    slave_id, func_code, r_addr, r_count = struct.unpack(">BBHH", frame[:6])
-    return (slave_id == expected_slave and func_code == 0x10 and r_addr == (start_addr & 0xFFFF) and r_count == (count & 0xFFFF))
+    start_idx = 0
+    while start_idx <= len(frame) - 8:
+        if frame[start_idx] == expected_slave and frame[start_idx + 1] == 0x10:
+            sub = frame[start_idx:start_idx + 8]
+            if verify_crc16(sub):
+                slave_id, func_code, r_addr, r_count = struct.unpack(">BBHH", sub[:6])
+                if slave_id == expected_slave and func_code == 0x10 and r_addr == (start_addr & 0xFFFF) and r_count == (count & 0xFFFF):
+                    return True
+        start_idx += 1
+    return False
 
 
 def get_available_ports() -> List[Dict[str, str]]:
@@ -666,7 +685,9 @@ class MGMConnection:
         self.read_count: int = 11
         self.write_start_addr: int = 0
         self.write_count: int = 2
-        self.cyclic_write_enabled: bool = True
+        self.cyclic_write_enabled: bool = False  # Mặc định KHÔNG gửi liên tục F=16 chu kỳ để tránh nghẽn bus
+        self.send_on_change_only: bool = True    # Mặc định CHỈ gửi khi có sự thay đổi giá trị
+        self.last_sent_esc_write: Optional[Tuple[int, int]] = None  # Ghi nhớ giá trị F=16 đã gửi gần nhất
 
         self.is_connected: bool = False
         self.is_simulator: bool = False
@@ -722,6 +743,7 @@ class MGMConnection:
         self.read_err_count = 0
         self.write_tx_count = 0
         self.write_err_count = 0
+        self.last_sent_esc_write = None
 
     def connect(self, port: str = "COM11", baud: int = 921600, use_simulator: bool = False,
                 slave_id: int = 1, scan_rate_ms: int = 500) -> bool:
@@ -732,6 +754,8 @@ class MGMConnection:
         self.slave_id = max(1, min(247, int(slave_id)))
         self.scan_rate_ms = max(50, min(5000, int(scan_rate_ms)))
         self.is_simulator = use_simulator
+        self.last_sent_esc_write = (self.current_write_regs[0], self.current_write_regs[1])
+        self._pending_write = None
 
         if use_simulator:
             self.is_connected = True
@@ -832,19 +856,26 @@ class MGMConnection:
             self.read_start_addr = 0
             self.log(f"POWER: Đã chuyển sang chế độ đọc {self.read_count} thanh ghi từ Addr #0", "INFO")
 
-    def write_control_command(self, on_off: int, speed_rpm: int, immediate: bool = True) -> bool:
+    def write_control_command(self, on_off: int, speed_rpm: int, immediate: bool = True, force: bool = False) -> bool:
         """
         Ghi bản tin điều khiển Modbus Write (F=16):
         - Reg 0: ON/OFF (0 hoặc 1)
         - Reg 1: SpeedRpm (int16)
+        Ưu tiên bản tin nhận: Chỉ gửi lệnh ghi khi có sự thay đổi giá trị (hoặc force=True)
         """
         on_val = 1 if int(on_off) != 0 else 0
         rpm_val = to_int16(speed_rpm)
+        new_val = (on_val, rpm_val)
         self.current_write_regs = [on_val, rpm_val]
 
+        # Kiểm tra sự thay đổi: nếu không đổi và không bắt buộc (force=False) thì bỏ qua
+        # để giữ đường truyền thông thoáng, ưu tiên tối đa cho việc nhận bản tin F=03
+        if not force and self.send_on_change_only and self.last_sent_esc_write == new_val:
+            return True
+
         if immediate and self.is_connected:
-            self._pending_write = (on_val, rpm_val)
-            self.log(f"Lệnh điều khiển F=16: ON/OFF = {on_val}, SpeedRpm = {rpm_val} RPM", "INFO")
+            self._pending_write = new_val
+            self.log(f"Lệnh điều khiển F=16: ON/OFF = {on_val}, SpeedRpm = {rpm_val} RPM (Gửi lệnh mới)", "INFO")
             return True
         return False
 
@@ -887,6 +918,8 @@ class MGMConnection:
                 self.serial_port.reset_input_buffer()
                 self.serial_port.write(req)
                 resp = self.serial_port.read(8)
+                if len(resp) < 8 and self.serial_port.in_waiting > 0:
+                    resp += self.serial_port.read(self.serial_port.in_waiting)
                 if resp:
                     self.last_write_rx_hex = resp.hex(" ").upper()
                 if parse_fc16_response(resp, self.slave_id, 0, len(vals)):
@@ -905,47 +938,75 @@ class MGMConnection:
         self._poll_thread.start()
 
     def _modbus_poll_loop(self):
-        """Vòng lặp quét định kỳ theo Scan Rate (SR = 500ms mặc định)"""
+        """
+        Vòng lặp quét định kỳ theo Scan Rate (SR = 500ms mặc định)
+        Chiến lược: ƯU TIÊN BẢN TIN NHẬN (F=03) MỖI CHU KỲ, CHỈ GỬI LỆNH GHI (F=16) KHI CÓ SỰ THAY ĐỔI
+        """
         while not self._stop_event.is_set():
             cycle_start = time.time()
             try:
-                # 1. Nếu có lệnh ghi MLD (F=16) hoặc chế độ Cyclic Write của MLD đang bật
-                if self._pending_mld_write is not None:
-                    m_vals = self._pending_mld_write
-                    self._pending_mld_write = None
-                    self._execute_mld_fc16_write(m_vals)
-                elif self.mld_cyclic_write_enabled and self.active_tab == "MLD":
-                    self._execute_mld_fc16_write(self.hardware_mld_write_regs)
-
-                # 2. Nếu có lệnh ghi Power tức thời (F=16)
-                elif self._pending_power_write is not None:
-                    p_addr, p_vals = self._pending_power_write
-                    self._pending_power_write = None
-                    self._execute_power_fc16_write(p_addr, p_vals)
-
-                # 3. Nếu có lệnh ghi ESC tức thời hoặc chế độ Cyclic Write (F=16) đang bật
-                elif self._pending_write is not None:
-                    on_v, rpm_v = self._pending_write
-                    self._pending_write = None
-                    self._execute_fc16_write(on_v, rpm_v)
-                elif self.cyclic_write_enabled and self.active_tab == "ESC":
-                    self._execute_fc16_write(self.current_write_regs[0], self.current_write_regs[1])
-
-                # 4. Thực hiện đọc thanh ghi bằng Function 03 (Read Holding Registers)
+                # 1. ƯU TIÊN HÀNG ĐẦU: ĐỌC DỮ LIỆU TELEMETRY (F=03 Read Holding Registers)
+                # Đảm bảo bản tin nhận luôn được thực thi đầy đủ và liên tục
                 self._execute_fc03_read()
 
-                # 5. Đóng gói snapshot gửi lên GUI
+                # Gửi snapshot dữ liệu đọc lên GUI ngay lập tức
                 snapshot = self._build_snapshot()
                 if self.on_telemetry_callback:
                     self.on_telemetry_callback(snapshot)
 
+                # 2. XỬ LÝ LỆNH GHI (CHỈ GỬI KHI CÓ SỰ THAY ĐỔI HOẶC YÊU CẦU ĐẶC BIỆT)
+                write_executed = False
+
+                # Lệnh ghi ESC: Chỉ gửi khi có lệnh thay đổi giá trị trong hàng đợi
+                if self._pending_write is not None:
+                    on_v, rpm_v = self._pending_write
+                    self._pending_write = None
+                    time.sleep(0.015)  # Trễ an toàn 15ms để bus RS485 ổn định sau bản tin đọc
+                    if self._execute_fc16_write(on_v, rpm_v):
+                        self.last_sent_esc_write = (on_v, rpm_v)
+                    write_executed = True
+                elif self.cyclic_write_enabled and self.active_tab == "ESC":
+                    # Kể cả khi bật cyclic_write, chỉ gửi nếu có sự thay đổi giá trị so với lần gửi trước
+                    cur_tuple = (self.current_write_regs[0], self.current_write_regs[1])
+                    if cur_tuple != self.last_sent_esc_write:
+                        time.sleep(0.015)
+                        if self._execute_fc16_write(cur_tuple[0], cur_tuple[1]):
+                            self.last_sent_esc_write = cur_tuple
+                        write_executed = True
+
+                # Lệnh ghi Power Module
+                elif self._pending_power_write is not None:
+                    p_addr, p_vals = self._pending_power_write
+                    self._pending_power_write = None
+                    time.sleep(0.015)
+                    self._execute_power_fc16_write(p_addr, p_vals)
+                    write_executed = True
+
+                # Lệnh ghi MLD Module
+                elif self._pending_mld_write is not None:
+                    m_vals = self._pending_mld_write
+                    self._pending_mld_write = None
+                    time.sleep(0.015)
+                    self._execute_mld_fc16_write(m_vals)
+                    write_executed = True
+                elif self.mld_cyclic_write_enabled and self.active_tab == "MLD":
+                    time.sleep(0.015)
+                    self._execute_mld_fc16_write(self.hardware_mld_write_regs)
+                    write_executed = True
+
+                # Nếu vừa thực hiện lệnh ghi, cập nhật lại snapshot lên GUI để phản ánh Tx, Hex mới
+                if write_executed:
+                    snapshot = self._build_snapshot()
+                    if self.on_telemetry_callback:
+                        self.on_telemetry_callback(snapshot)
+
             except Exception as e:
                 logger.error(f"Lỗi trong chu kỳ quét Modbus: {e}")
 
-            # Ngủ đúng theo Scan Rate (SR), nhưng kiểm tra nhanh nếu có lệnh ghi tức thời
+            # Ngủ đúng theo Scan Rate (SR), nhưng phản ứng tức thời nếu có lệnh ghi mới được đưa vào
             sr_sec = max(0.05, self.scan_rate_ms / 1000.0)
             while (time.time() - cycle_start) < sr_sec and not self._stop_event.is_set():
-                if self._pending_write is not None or self._pending_power_write is not None:
+                if self._pending_write is not None or self._pending_power_write is not None or self._pending_mld_write is not None:
                     break
                 time.sleep(0.02)
 
@@ -975,6 +1036,8 @@ class MGMConnection:
                 self.serial_port.write(req)
                 expected_len = 5 + self.read_count * 2
                 resp = self.serial_port.read(expected_len)
+                if len(resp) < expected_len and self.serial_port.in_waiting > 0:
+                    resp += self.serial_port.read(self.serial_port.in_waiting)
                 if resp:
                     self.last_read_rx_hex = resp.hex(" ").upper()
                     if len(resp) >= 3 and (resp[1] & 0x80):
@@ -1029,6 +1092,8 @@ class MGMConnection:
                 self.serial_port.reset_input_buffer()
                 self.serial_port.write(req)
                 resp = self.serial_port.read(8)
+                if len(resp) < 8 and self.serial_port.in_waiting > 0:
+                    resp += self.serial_port.read(self.serial_port.in_waiting)
                 if resp:
                     self.last_write_rx_hex = resp.hex(" ").upper()
                 if parse_fc16_response(resp, self.slave_id, self.write_start_addr, 2):
@@ -1063,6 +1128,8 @@ class MGMConnection:
                 self.serial_port.reset_input_buffer()
                 self.serial_port.write(req)
                 resp = self.serial_port.read(8)
+                if len(resp) < 8 and self.serial_port.in_waiting > 0:
+                    resp += self.serial_port.read(self.serial_port.in_waiting)
                 if resp:
                     self.last_write_rx_hex = resp.hex(" ").upper()
                 if parse_fc16_response(resp, self.slave_id, addr, len(vals)):
