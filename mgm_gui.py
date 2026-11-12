@@ -32,6 +32,7 @@ from mgm_comm import MGMConnection, get_available_ports
 from gui_esc import ESCTabFrame
 from gui_bmu import BMUTabFrame
 from gui_power import PowerTabFrame
+from gui_mld import MLDTabFrame
 
 # Bảng màu chuẩn Viettel Red
 VIETTEL_RED = "#EE0033"
@@ -118,7 +119,7 @@ class ViettelMainApp(ctk.CTk):
         text_box.pack(side="left")
 
         lbl_brand = ctk.CTkLabel(
-            text_box, text="VIETTEL PROPULSION SUITE",
+            text_box, text="VIETTEL VMC",
             font=ctk.CTkFont(size=17, weight="bold"), text_color=VIETTEL_TEXT_WHITE
         )
         lbl_brand.pack(anchor="w")
@@ -236,12 +237,13 @@ class ViettelMainApp(ctk.CTk):
         )
         self.tabview.pack(fill="both", expand=True, padx=10, pady=(4, 4))
 
-        # 3 Tab chính theo yêu cầu
+        # 4 Tab quản lý chuyên biệt theo yêu cầu
         self.tab_esc_container = self.tabview.add("🚀 QUẢN LÝ ESC / ĐỘNG CƠ (ESC)")
         self.tab_bmu_container = self.tabview.add("🔋 QUẢN LÝ BMU / PIN (BMU)")
         self.tab_power_container = self.tabview.add("⚡ HỆ THỐNG NGUỒN & PHÂN PHỐI (POWER)")
+        self.tab_mld_container = self.tabview.add("🎯 BỘ ĐIỀU KHIỂN MLD (MLD)")
 
-        # Khởi tạo và nhúng 3 View từ 3 file riêng biệt
+        # Khởi tạo và nhúng 4 View từ 4 file riêng biệt
         self.view_esc = ESCTabFrame(self.tab_esc_container, conn=self.conn)
         self.view_esc.pack(fill="both", expand=True)
 
@@ -251,24 +253,41 @@ class ViettelMainApp(ctk.CTk):
         self.view_power = PowerTabFrame(self.tab_power_container, conn=self.conn)
         self.view_power.pack(fill="both", expand=True)
 
+        self.view_mld = MLDTabFrame(self.tab_mld_container, conn=self.conn)
+        self.view_mld.pack(fill="both", expand=True)
+
     def _on_tab_changed(self):
         """Xử lý sự kiện khi người dùng chuyển đổi tab"""
         sel = self.tabview.get()
+        last_d = getattr(self, '_last_telemetry', None)
         if "POWER" in sel:
             self.conn.set_active_tab("POWER")
             self.lbl_port_spec.configure(
                 text=f"Port: {self.conn.port_name} ({self.conn.baud_rate}-8-N-1) | ID={self.conn.slave_id} | Modbus POWER: F=03 Read (36 Regs) / F=16 Write (10 Regs)"
             )
+            if hasattr(self, 'view_power') and last_d:
+                self.view_power.update_telemetry(last_d)
         elif "ESC" in sel:
             self.conn.set_active_tab("ESC")
             self.lbl_port_spec.configure(
                 text=f"Port: {self.conn.port_name} ({self.conn.baud_rate}-8-N-1) | ID={self.conn.slave_id} | Modbus ESC: F=03 Read (11 Regs) / F=16 Write (2 Regs)"
             )
+            if hasattr(self, 'view_esc') and last_d:
+                self.view_esc.update_telemetry(last_d)
         elif "BMU" in sel:
             self.conn.set_active_tab("BMU")
             self.lbl_port_spec.configure(
                 text=f"Port: {self.conn.port_name} ({self.conn.baud_rate}-8-N-1) | ID={self.conn.slave_id} | Module: BMU Battery Management"
             )
+            if hasattr(self, 'view_bmu') and last_d:
+                self.view_bmu.update_telemetry(last_d)
+        elif "MLD" in sel:
+            self.conn.set_active_tab("MLD")
+            self.lbl_port_spec.configure(
+                text=f"Port: {self.conn.port_name} ({self.conn.baud_rate}-8-N-1) | ID={self.conn.slave_id} | Modbus MLD: F=03 Read (7 Regs) / F=16 Write (4 Regs)"
+            )
+            if hasattr(self, 'view_mld') and last_d:
+                self.view_mld.update_telemetry(last_d)
 
     # =========================================================================
     # 3. STATUS BAR
@@ -352,13 +371,26 @@ class ViettelMainApp(ctk.CTk):
             while not self.telemetry_queue.empty():
                 latest_d = self.telemetry_queue.get_nowait()
             if latest_d:
-                # Phân phối dữ liệu đồng thời tới cả 3 View chuyên biệt
-                if hasattr(self, 'view_esc') and self.view_esc.winfo_exists():
-                    self.view_esc.update_telemetry(latest_d)
-                if hasattr(self, 'view_bmu') and self.view_bmu.winfo_exists():
-                    self.view_bmu.update_telemetry(latest_d)
-                if hasattr(self, 'view_power') and self.view_power.winfo_exists():
+                self._last_telemetry = latest_d
+                sel = self.tabview.get() if hasattr(self, 'tabview') else ""
+
+                # Chỉ phân phối telemetry tới Tab đang mở để tối ưu tài nguyên và chống giật lag
+                if "POWER" in sel and hasattr(self, 'view_power') and self.view_power.winfo_exists():
                     self.view_power.update_telemetry(latest_d)
+                elif "ESC" in sel and hasattr(self, 'view_esc') and self.view_esc.winfo_exists():
+                    self.view_esc.update_telemetry(latest_d)
+                elif "BMU" in sel and hasattr(self, 'view_bmu') and self.view_bmu.winfo_exists():
+                    self.view_bmu.update_telemetry(latest_d)
+                elif "MLD" in sel and hasattr(self, 'view_mld') and self.view_mld.winfo_exists():
+                    self.view_mld.update_telemetry(latest_d)
+
+                # Nếu Tab ESC đang bật chế độ Ghi log CSV thì vẫn ghi file ngầm (không cần vẽ GUI)
+                if "ESC" not in sel and hasattr(self, 'view_esc') and getattr(self.view_esc, 'recording_file', None):
+                    self.view_esc.log_csv_record(latest_d)
+
+                # Nếu Tab MLD đang bật chế độ Ghi log CSV thì vẫn ghi file ngầm
+                if "MLD" not in sel and hasattr(self, 'view_mld') and getattr(self.view_mld, 'recording_file', None):
+                    self.view_mld.log_csv_record(latest_d)
 
             while not self.log_queue.empty():
                 msg = self.log_queue.get_nowait()

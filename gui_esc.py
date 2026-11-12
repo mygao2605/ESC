@@ -37,6 +37,26 @@ VIETTEL_TEXT_GRAY = "#B5A7AA"
 MODBUS_BLUE_SEL = "#0078D7"
 
 
+def _safe_configure_label(lbl, text: str, text_color: str = None):
+    """Chỉ gọi lbl.configure() khi text hoặc text_color thực sự thay đổi nhằm triệt tiêu giật lag/flicker"""
+    if lbl is None:
+        return
+    cached_text = getattr(lbl, "_cached_text", None)
+    cached_color = getattr(lbl, "_cached_color", None)
+    changed = False
+    kwargs = {}
+    if cached_text != text:
+        kwargs["text"] = text
+        lbl._cached_text = text
+        changed = True
+    if text_color is not None and cached_color != text_color:
+        kwargs["text_color"] = text_color
+        lbl._cached_color = text_color
+        changed = True
+    if changed:
+        lbl.configure(**kwargs)
+
+
 class ESCTabFrame(ctk.CTkScrollableFrame):
     """Giao diện quản lý toàn diện bộ điều tốc ESC / Động cơ BLDC (Hỗ trợ ScrollView cuộn mượt mà)"""
     def __init__(self, master, conn, **kwargs):
@@ -517,8 +537,34 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
                     messagebox.showerror("Lỗi", f"Không thể tạo tệp log: {e}")
 
     # -------------------------------------------------------------------------
-    # CẬP NHẬT TELEMETRY (GỌI TỪ LUỒNG CHÍNH MỖI CHU KỲ QUÉT)
     # -------------------------------------------------------------------------
+    # GHI LOG CSV & CẬP NHẬT TELEMETRY (GỌI TỪ LUỒNG CHÍNH MỖI CHU KỲ QUÉT)
+    # -------------------------------------------------------------------------
+    def log_csv_record(self, d: Dict[str, Any]):
+        """Ghi dữ liệu CSV ngầm độc lập với giao diện đồ họa"""
+        if self.csv_writer and self.recording_file:
+            try:
+                state_act = d.get("StateAct", 0)
+                speed_rpm = d.get("SpeedRpm", 0)
+                dc_volt = d.get("DcBusVolt", 0)
+                d_curr = d.get("D_Curr", 0)
+                q_curr = d.get("Q_Curr", 0)
+                fault_h = d.get("Fault_H", 0)
+                fault_l = d.get("Fault_L", 0)
+                m_temp = d.get("MotorTemp", 30)
+                ta = d.get("TempA", 24)
+                tb = d.get("TempB", 26)
+                tc = d.get("TempC", 26)
+                self.csv_writer.writerow([
+                    time.strftime("%Y-%m-%d %H:%M:%S"),
+                    d.get("time_ms", 0),
+                    state_act, speed_rpm, dc_volt, d_curr, q_curr,
+                    fault_h, fault_l, m_temp, ta, tb, tc,
+                    d.get("cmd_on_off", 0), d.get("cmd_speed_rpm", 0)
+                ])
+            except Exception:
+                pass
+
     def update_telemetry(self, d: Dict[str, Any]):
         sid = d.get("slave_id", 1)
         sr = d.get("scan_rate_ms", 500)
@@ -527,24 +573,24 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
         w_tx = d.get("write_tx", 0)
         w_err = d.get("write_err", 0)
 
-        self.lbl_read_stat.configure(text=f"Tx = {r_tx}: Err = {r_err}: ID = {sid}: F = 03: SR = {sr}ms")
-        self.lbl_write_stat.configure(text=f"Tx = {w_tx}: Err = {w_err}: ID = {sid}: F = 16: SR = {sr}ms")
+        _safe_configure_label(self.lbl_read_stat, f"Tx = {r_tx}: Err = {r_err}: ID = {sid}: F = 03: SR = {sr}ms")
+        _safe_configure_label(self.lbl_write_stat, f"Tx = {w_tx}: Err = {w_err}: ID = {sid}: F = 16: SR = {sr}ms")
 
         read_regs = d.get("read_regs", [0] * 11)
         for idx, val in enumerate(read_regs[:11]):
             if idx in self.read_row_labels:
-                self.read_row_labels[idx]["val"].configure(text=f"{val}")
-                self.read_row_labels[idx]["hex"].configure(text=f"0x{(val & 0xFFFF):04X}")
+                _safe_configure_label(self.read_row_labels[idx]["val"], f"{val}")
+                _safe_configure_label(self.read_row_labels[idx]["hex"], f"0x{(val & 0xFFFF):04X}")
 
         write_regs = d.get("write_regs", [0, 0])
         if len(write_regs) >= 2:
-            self.lbl_w_val0.configure(text=f"{write_regs[0]}")
-            self.lbl_w_val1.configure(text=f"{write_regs[1]}  ")
+            _safe_configure_label(self.lbl_w_val0, f"{write_regs[0]}")
+            _safe_configure_label(self.lbl_w_val1, f"{write_regs[1]}  ")
 
         if d.get("last_read_tx_hex"):
-            self.lbl_read_tx_hex.configure(text=f"[TX F=03] >> {d['last_read_tx_hex']}")
+            _safe_configure_label(self.lbl_read_tx_hex, f"[TX F=03] >> {d['last_read_tx_hex']}")
         if d.get("last_read_rx_hex"):
-            self.lbl_read_rx_hex.configure(text=f"[RX F=03] << {d['last_read_rx_hex']}")
+            _safe_configure_label(self.lbl_read_rx_hex, f"[RX F=03] << {d['last_read_rx_hex']}")
 
         state_act = d.get("StateAct", 0)
         speed_rpm = d.get("SpeedRpm", 0)
@@ -560,30 +606,22 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
 
         if "StateAct" in self.card_labels:
             st_str = f"{state_act} (RUN)" if state_act == 1 else f"{state_act} (IDLE)" if state_act == 0 else f"{state_act} (FAULT)"
-            self.card_labels["StateAct"].configure(text=st_str, text_color="#00E676" if state_act == 1 else VIETTEL_TEXT_WHITE if state_act == 0 else VIETTEL_RED)
-            self.card_labels["SpeedRpm"].configure(text=f"{speed_rpm}")
-            self.card_labels["DcBusVolt"].configure(text=f"{dc_volt}")
-            self.card_labels["D_Curr"].configure(text=f"{d_curr}")
-            self.card_labels["Q_Curr"].configure(text=f"{q_curr}")
+            _safe_configure_label(self.card_labels["StateAct"], st_str, "#00E676" if state_act == 1 else VIETTEL_TEXT_WHITE if state_act == 0 else VIETTEL_RED)
+            _safe_configure_label(self.card_labels["SpeedRpm"], f"{speed_rpm}")
+            _safe_configure_label(self.card_labels["DcBusVolt"], f"{dc_volt}")
+            _safe_configure_label(self.card_labels["D_Curr"], f"{d_curr}")
+            _safe_configure_label(self.card_labels["Q_Curr"], f"{q_curr}")
             fault_ok = (fault_h == 0 and fault_l == 0)
-            self.card_labels["Fault_HL"].configure(
-                text=f"{fault_h} / {fault_l}" + (" (OK)" if fault_ok else " (ERR)"),
-                text_color="#00E676" if fault_ok else VIETTEL_RED
+            _safe_configure_label(
+                self.card_labels["Fault_HL"],
+                f"{fault_h} / {fault_l}" + (" (OK)" if fault_ok else " (ERR)"),
+                "#00E676" if fault_ok else VIETTEL_RED
             )
-            self.card_labels["MotorTemp"].configure(text=f"{m_temp}")
-            self.card_labels["PhaseTemps"].configure(text=f"{ta}/{tb}/{tc}")
+            _safe_configure_label(self.card_labels["MotorTemp"], f"{m_temp}")
+            _safe_configure_label(self.card_labels["PhaseTemps"], f"{ta}/{tb}/{tc}")
 
-        if self.csv_writer and self.recording_file:
-            try:
-                self.csv_writer.writerow([
-                    time.strftime("%Y-%m-%d %H:%M:%S"),
-                    d.get("time_ms", 0),
-                    state_act, speed_rpm, dc_volt, d_curr, q_curr,
-                    fault_h, fault_l, m_temp, ta, tb, tc,
-                    d.get("cmd_on_off", 0), d.get("cmd_speed_rpm", 0)
-                ])
-            except Exception:
-                pass
+        # Ghi log CSV nếu đang bật
+        self.log_csv_record(d)
 
         if not self.is_monitoring:
             return
@@ -604,14 +642,20 @@ class ESCTabFrame(ctk.CTkScrollableFrame):
             self.iq_data.pop(0)
             self.mtemp_data.pop(0)
 
-        t_rel = [t - self.t_data[0] for t in self.t_data]
-        self.line_rpm.set_data(t_rel, self.rpm_data if self.chk_rpm.get() else [])
-        self.line_v.set_data(t_rel, self.v_data if self.chk_v.get() else [])
-        self.line_id.set_data(t_rel, self.id_data if self.chk_id.get() else [])
-        self.line_iq.set_data(t_rel, self.iq_data if self.chk_iq.get() else [])
-        self.line_mtemp.set_data(t_rel, self.mtemp_data if self.chk_t.get() else [])
+        # Giới hạn tần suất vẽ lại đồ thị (tối đa 10 FPS = 100ms) và chỉ vẽ khi Tab đang hiển thị
+        if not hasattr(self, '_last_chart_redraw'):
+            self._last_chart_redraw = 0.0
 
-        self.ax.relim()
-        self.ax.autoscale_view(True, True, True)
-        self.canvas.draw_idle()
+        if self.winfo_viewable() and (now - self._last_chart_redraw >= 0.10):
+            self._last_chart_redraw = now
+            t_rel = [t - self.t_data[0] for t in self.t_data]
+            self.line_rpm.set_data(t_rel, self.rpm_data if self.chk_rpm.get() else [])
+            self.line_v.set_data(t_rel, self.v_data if self.chk_v.get() else [])
+            self.line_id.set_data(t_rel, self.id_data if self.chk_id.get() else [])
+            self.line_iq.set_data(t_rel, self.iq_data if self.chk_iq.get() else [])
+            self.line_mtemp.set_data(t_rel, self.mtemp_data if self.chk_t.get() else [])
+
+            self.ax.relim()
+            self.ax.autoscale_view(True, True, True)
+            self.canvas.draw_idle()
 

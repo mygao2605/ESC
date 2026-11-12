@@ -26,6 +26,40 @@ VIETTEL_TEXT_WHITE = "#FFFFFF"
 VIETTEL_TEXT_GRAY = "#B5A7AA"
 
 
+def _safe_configure_label(lbl, text: str, text_color: str = None):
+    """Chỉ gọi lbl.configure() khi text hoặc text_color thực sự thay đổi nhằm triệt tiêu giật lag/flicker"""
+    if lbl is None:
+        return
+    cached_text = getattr(lbl, "_cached_text", None)
+    cached_color = getattr(lbl, "_cached_color", None)
+    changed = False
+    kwargs = {}
+    if cached_text != text:
+        kwargs["text"] = text
+        lbl._cached_text = text
+        changed = True
+    if text_color is not None and cached_color != text_color:
+        kwargs["text_color"] = text_color
+        lbl._cached_color = text_color
+        changed = True
+    if changed:
+        lbl.configure(**kwargs)
+
+
+def _safe_set_progress_bar(bar, ratio: float, color: str):
+    """Chỉ set và đổi màu progress bar khi giá trị hoặc màu thay đổi đáng kể"""
+    if bar is None:
+        return
+    cached_ratio = getattr(bar, "_cached_ratio", None)
+    cached_color = getattr(bar, "_cached_color", None)
+    if cached_ratio is None or abs(cached_ratio - ratio) > 0.005:
+        bar.set(ratio)
+        bar._cached_ratio = ratio
+    if cached_color != color:
+        bar.configure(progress_color=color)
+        bar._cached_color = color
+
+
 class BMUTabFrame(ctk.CTkScrollableFrame):
     """Giao diện quản lý Hệ thống Quản lý Pin (BMU / BMS) (Hỗ trợ ScrollView cuộn mượt mà)"""
     def __init__(self, master, conn, **kwargs):
@@ -288,14 +322,14 @@ class BMUTabFrame(ctk.CTkScrollableFrame):
         cycles = d.get("bmu_cycle_count", 42)
 
         if "pack_voltage" in self.metric_labels:
-            self.metric_labels["pack_voltage"].configure(text=f"{pack_v:.2f}")
-            self.metric_labels["pack_current"].configure(text=f"{pack_i:.1f}")
-            self.metric_labels["soc"].configure(text=f"{soc:.1f}")
-            self.metric_labels["soh"].configure(text=f"{soh:.1f}")
-            self.metric_labels["delta_v"].configure(text=f"{delta_mv:.1f}")
-            self.metric_labels["max_cell"].configure(text=f"{max_v:.3f} (C{max_idx})")
-            self.metric_labels["min_cell"].configure(text=f"{min_v:.3f} (C{min_idx})")
-            self.metric_labels["cycles"].configure(text=f"{cycles}")
+            _safe_configure_label(self.metric_labels["pack_voltage"], f"{pack_v:.2f}")
+            _safe_configure_label(self.metric_labels["pack_current"], f"{pack_i:.1f}")
+            _safe_configure_label(self.metric_labels["soc"], f"{soc:.1f}")
+            _safe_configure_label(self.metric_labels["soh"], f"{soh:.1f}")
+            _safe_configure_label(self.metric_labels["delta_v"], f"{delta_mv:.1f}")
+            _safe_configure_label(self.metric_labels["max_cell"], f"{max_v:.3f} (C{max_idx})")
+            _safe_configure_label(self.metric_labels["min_cell"], f"{min_v:.3f} (C{min_idx})")
+            _safe_configure_label(self.metric_labels["cycles"], f"{cycles}")
 
         # Cập nhật 16 Cell pin
         cells = d.get("bmu_cells", [])
@@ -305,10 +339,8 @@ class BMUTabFrame(ctk.CTkScrollableFrame):
             cell_num = i + 1
             if cell_num in self.cell_widgets:
                 w = self.cell_widgets[cell_num]
-                w["val"].configure(text=f"{v:.3f} V")
                 # Tỷ lệ 3.0V -> 0%, 4.2V -> 100%
                 ratio = max(0.0, min(1.0, (v - 3.0) / 1.2))
-                w["bar"].set(ratio)
 
                 # Đổi màu cảnh báo nếu cell lệch nhiều
                 if v < 3.2 or v > 4.22:
@@ -317,21 +349,22 @@ class BMUTabFrame(ctk.CTkScrollableFrame):
                     color = "#FFD54F"
                 else:
                     color = "#00E676"
-                w["val"].configure(text_color=color)
-                w["bar"].configure(progress_color=color)
+
+                _safe_configure_label(w["val"], f"{v:.3f} V", color)
+                _safe_set_progress_bar(w["bar"], ratio, color)
 
                 if cell_num in bal_cells:
-                    w["bal"].configure(text="⚡ BAL")
+                    _safe_configure_label(w["bal"], "⚡ BAL")
                 else:
-                    w["bal"].configure(text="")
+                    _safe_configure_label(w["bal"], "")
 
         # Cập nhật nhiệt độ
         temps = d.get("bmu_temps", [28.4, 29.1, 28.7, 29.5])
         board_t = d.get("bmu_board_temp", 31.2)
         if len(temps) >= 4 and "t1" in self.temp_labels:
-            self.temp_labels["t1"].configure(text=f"{temps[0]:.1f} °C")
-            self.temp_labels["t2"].configure(text=f"{temps[1]:.1f} °C")
-            self.temp_labels["t3"].configure(text=f"{temps[2]:.1f} °C")
-            self.temp_labels["t4"].configure(text=f"{temps[3]:.1f} °C")
-            self.temp_labels["tbmu"].configure(text=f"{board_t:.1f} °C")
+            _safe_configure_label(self.temp_labels["t1"], f"{temps[0]:.1f} °C")
+            _safe_configure_label(self.temp_labels["t2"], f"{temps[1]:.1f} °C")
+            _safe_configure_label(self.temp_labels["t3"], f"{temps[2]:.1f} °C")
+            _safe_configure_label(self.temp_labels["t4"], f"{temps[3]:.1f} °C")
+            _safe_configure_label(self.temp_labels["tbmu"], f"{board_t:.1f} °C")
 

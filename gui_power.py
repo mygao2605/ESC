@@ -46,6 +46,26 @@ VIETTEL_TEXT_GRAY = "#B5A7AA"
 MODBUS_BLUE_SEL = "#0078D7"
 
 
+def _safe_configure_label(lbl, text: str, text_color: str = None):
+    """Chỉ gọi lbl.configure() khi text hoặc text_color thực sự thay đổi nhằm triệt tiêu giật lag/flicker"""
+    if lbl is None:
+        return
+    cached_text = getattr(lbl, "_cached_text", None)
+    cached_color = getattr(lbl, "_cached_color", None)
+    changed = False
+    kwargs = {}
+    if cached_text != text:
+        kwargs["text"] = text
+        lbl._cached_text = text
+        changed = True
+    if text_color is not None and cached_color != text_color:
+        kwargs["text_color"] = text_color
+        lbl._cached_color = text_color
+        changed = True
+    if changed:
+        lbl.configure(**kwargs)
+
+
 class PowerTabFrame(ctk.CTkScrollableFrame):
     """Giao diện Quản lý Nguồn & Hệ thống Phân phối Điện (Power & PDU) với 2 chế độ giám sát"""
     def __init__(self, master, conn, **kwargs):
@@ -469,6 +489,9 @@ class PowerTabFrame(ctk.CTkScrollableFrame):
         self._update_state_ui(s)
 
     def _update_state_ui(self, s: int):
+        if getattr(self, "_last_pwr_state", None) == s:
+            return
+        self._last_pwr_state = s
         if s == 1:
             self.lbl_state_badge.configure(text="BẬT (STATE = 1)", text_color="#00E676")
             self.btn_set_state_1.configure(fg_color="#1E8E3E", hover_color="#16692D")
@@ -504,57 +527,57 @@ class PowerTabFrame(ctk.CTkScrollableFrame):
             # Cập nhật Thẻ Card
             if idx in self.phase_shift_labels:
                 w = self.phase_shift_labels[idx]
-                w["hex"].configure(text=f"0x{(v_raw & 0xFFFF):04X}")
+                _safe_configure_label(w["hex"], f"0x{(v_raw & 0xFFFF):04X}")
 
                 if idx == 0:
                     if v_raw == 1:
-                        w["val"].configure(text="🟢 BẬT (1)", text_color="#00E676")
+                        _safe_configure_label(w["val"], "🟢 BẬT (1)", "#00E676")
                     else:
-                        w["val"].configure(text="⚪ TẮT (0)", text_color=VIETTEL_RED)
-                    w["scale"].configure(text="")
+                        _safe_configure_label(w["val"], "⚪ TẮT (0)", VIETTEL_RED)
+                    _safe_configure_label(w["scale"], "")
                 elif idx in (4, 5):
-                    w["val"].configure(text=f"{v_raw}", text_color=VIETTEL_TEXT_WHITE)
-                    w["scale"].configure(text=f"({v_raw * 0.001:.2f} V)")
+                    _safe_configure_label(w["val"], f"{v_raw}", VIETTEL_TEXT_WHITE)
+                    _safe_configure_label(w["scale"], f"({v_raw * 0.001:.2f} V)")
                 elif idx == 6:
-                    w["val"].configure(text=f"{v_raw}", text_color=VIETTEL_TEXT_WHITE)
-                    w["scale"].configure(text=f"({v_raw * 0.001:.2f} A)")
+                    _safe_configure_label(w["val"], f"{v_raw}", VIETTEL_TEXT_WHITE)
+                    _safe_configure_label(w["scale"], f"({v_raw * 0.001:.2f} A)")
                 elif idx == 1:
-                    w["val"].configure(text=f"{v_raw}", text_color=VIETTEL_TEXT_WHITE)
-                    w["scale"].configure(text="ms")
+                    _safe_configure_label(w["val"], f"{v_raw}", VIETTEL_TEXT_WHITE)
+                    _safe_configure_label(w["scale"], "ms")
                 elif idx == 8:
-                    w["val"].configure(text=f"{v_raw}", text_color="#FFD54F")
-                    w["scale"].configure(text="RPM")
+                    _safe_configure_label(w["val"], f"{v_raw}", "#FFD54F")
+                    _safe_configure_label(w["scale"], "RPM")
                 elif idx == 9:
-                    w["val"].configure(text=f"{v_raw}", text_color=VIETTEL_TEXT_WHITE)
-                    w["scale"].configure(text="ns")
+                    _safe_configure_label(w["val"], f"{v_raw}", VIETTEL_TEXT_WHITE)
+                    _safe_configure_label(w["scale"], "ns")
                 elif idx == 7:
-                    w["val"].configure(text=f"{v_raw}", text_color="#00E676" if v_raw == 0 else VIETTEL_RED)
-                    w["scale"].configure(text="(Bình thường)" if v_raw == 0 else "(LỖI)")
+                    _safe_configure_label(w["val"], f"{v_raw}", "#00E676" if v_raw == 0 else VIETTEL_RED)
+                    _safe_configure_label(w["scale"], "(Bình thường)" if v_raw == 0 else "(LỖI)")
                 else:
-                    w["val"].configure(text=f"{v_raw}", text_color=VIETTEL_TEXT_WHITE)
-                    w["scale"].configure(text="")
+                    _safe_configure_label(w["val"], f"{v_raw}", VIETTEL_TEXT_WHITE)
+                    _safe_configure_label(w["scale"], "")
 
             # Cập nhật Hàng Bảng chi tiết Phase-Shift
             if idx in self.phase_shift_row_labels:
                 rw = self.phase_shift_row_labels[idx]
-                rw["val"].configure(text=f"{v_raw}")
-                rw["hex"].configure(text=f"0x{(v_raw & 0xFFFF):04X}")
+                _safe_configure_label(rw["val"], f"{v_raw}")
+                _safe_configure_label(rw["hex"], f"0x{(v_raw & 0xFFFF):04X}")
                 if idx == 0:
-                    rw["scale"].configure(text="BẬT (1)" if v_raw == 1 else "TẮT (0)", text_color="#00E676" if v_raw == 1 else VIETTEL_RED)
+                    _safe_configure_label(rw["scale"], "BẬT (1)" if v_raw == 1 else "TẮT (0)", "#00E676" if v_raw == 1 else VIETTEL_RED)
                 elif idx in (4, 5):
-                    rw["scale"].configure(text=f"{v_raw * 0.001:.2f} V", text_color="#00E676")
+                    _safe_configure_label(rw["scale"], f"{v_raw * 0.001:.2f} V", "#00E676")
                 elif idx == 6:
-                    rw["scale"].configure(text=f"{v_raw * 0.001:.2f} A", text_color="#FF7043")
+                    _safe_configure_label(rw["scale"], f"{v_raw * 0.001:.2f} A", "#FF7043")
                 elif idx == 1:
-                    rw["scale"].configure(text=f"{v_raw} ms", text_color=VIETTEL_TEXT_WHITE)
+                    _safe_configure_label(rw["scale"], f"{v_raw} ms", VIETTEL_TEXT_WHITE)
                 elif idx == 8:
-                    rw["scale"].configure(text=f"{v_raw} RPM", text_color="#FFD54F")
+                    _safe_configure_label(rw["scale"], f"{v_raw} RPM", "#FFD54F")
                 elif idx == 9:
-                    rw["scale"].configure(text=f"{v_raw} ns", text_color=VIETTEL_TEXT_WHITE)
+                    _safe_configure_label(rw["scale"], f"{v_raw} ns", VIETTEL_TEXT_WHITE)
                 elif idx == 7:
-                    rw["scale"].configure(text="OK (0)" if v_raw == 0 else f"ERR ({v_raw})", text_color="#00E676" if v_raw == 0 else VIETTEL_RED)
+                    _safe_configure_label(rw["scale"], "OK (0)" if v_raw == 0 else f"ERR ({v_raw})", "#00E676" if v_raw == 0 else VIETTEL_RED)
                 else:
-                    rw["scale"].configure(text=f"{v_raw}")
+                    _safe_configure_label(rw["scale"], f"{v_raw}")
 
         # 2. CẬP NHẬT 36 THANH GHI HỆ THỐNG NGUỒN TỔNG
         pwr_read = d.get("pwr_read_regs", [0] * 36)
@@ -567,16 +590,16 @@ class PowerTabFrame(ctk.CTkScrollableFrame):
             if idx in self.read_row_labels:
                 v_raw = pwr_read[idx]
                 w = self.read_row_labels[idx]
-                w["val"].configure(text=f"{v_raw}")
-                w["hex"].configure(text=f"0x{(v_raw & 0xFFFF):04X}")
+                _safe_configure_label(w["val"], f"{v_raw}")
+                _safe_configure_label(w["hex"], f"0x{(v_raw & 0xFFFF):04X}")
 
                 scale = reg.get("scale", 1.0)
                 unit_s = reg.get("scale_unit", "")
                 val_scaled = v_raw * scale
                 if scale < 1.0:
-                    w["scale"].configure(text=f"{val_scaled:.2f} {unit_s}")
+                    _safe_configure_label(w["scale"], f"{val_scaled:.2f} {unit_s}")
                 else:
-                    w["scale"].configure(text=f"{int(val_scaled)} {unit_s}")
+                    _safe_configure_label(w["scale"], f"{int(val_scaled)} {unit_s}")
 
         # Cập nhật 6 thẻ Hero
         vbus = pwr_read[29] * 0.01
@@ -588,39 +611,40 @@ class PowerTabFrame(ctk.CTkScrollableFrame):
         err_s = pwr_read[34]
 
         if "vbus" in self.hero_labels:
-            self.hero_labels["vbus"].configure(text=f"{vbus:.2f}")
-            self.hero_labels["vout_master"].configure(text=f"{vout_m:.2f}")
-            self.hero_labels["iout_master"].configure(text=f"{iout_m:.2f}")
-            self.hero_labels["vout_slave"].configure(text=f"{vout_s:.2f}")
-            self.hero_labels["fanspeed"].configure(text=f"{fanspeed}")
+            _safe_configure_label(self.hero_labels["vbus"], f"{vbus:.2f}")
+            _safe_configure_label(self.hero_labels["vout_master"], f"{vout_m:.2f}")
+            _safe_configure_label(self.hero_labels["iout_master"], f"{iout_m:.2f}")
+            _safe_configure_label(self.hero_labels["vout_slave"], f"{vout_s:.2f}")
+            _safe_configure_label(self.hero_labels["fanspeed"], f"{fanspeed}")
             err_ok = (err_m == 0 and err_s == 0)
-            self.hero_labels["err_code"].configure(
-                text=f"{err_m} / {err_s}" + (" (OK)" if err_ok else " (ERR)"),
-                text_color="#00E676" if err_ok else VIETTEL_RED
+            _safe_configure_label(
+                self.hero_labels["err_code"],
+                f"{err_m} / {err_s}" + (" (OK)" if err_ok else " (ERR)"),
+                "#00E676" if err_ok else VIETTEL_RED
             )
 
         # Cập nhật các thẻ nhóm
         if "reg_0" in self.group_val_labels:
-            self.group_val_labels["reg_0"].configure(text=f"{pwr_read[0]} mV ({pwr_read[0]*0.001:.2f} V)")
-            self.group_val_labels["reg_1"].configure(text=f"{pwr_read[1]} mA ({pwr_read[1]*0.001:.2f} A)")
-            self.group_val_labels["reg_2"].configure(text=f"{pwr_read[2]} mV ({pwr_read[2]*0.001:.2f} V)")
-            self.group_val_labels["reg_3"].configure(text=f"{pwr_read[3]} mA ({pwr_read[3]*0.001:.2f} A)")
+            _safe_configure_label(self.group_val_labels["reg_0"], f"{pwr_read[0]} mV ({pwr_read[0]*0.001:.2f} V)")
+            _safe_configure_label(self.group_val_labels["reg_1"], f"{pwr_read[1]} mA ({pwr_read[1]*0.001:.2f} A)")
+            _safe_configure_label(self.group_val_labels["reg_2"], f"{pwr_read[2]} mV ({pwr_read[2]*0.001:.2f} V)")
+            _safe_configure_label(self.group_val_labels["reg_3"], f"{pwr_read[3]} mA ({pwr_read[3]*0.001:.2f} A)")
 
-            self.group_val_labels["reg_28_34"].configure(text=f"{err_m} / {err_s} (OK)" if err_ok else f"{err_m} / {err_s} (ERROR)")
-            self.group_val_labels["reg_29"].configure(text=f"{pwr_read[29]} ({vbus:.2f} V)")
-            self.group_val_labels["reg_30_31"].configure(text=f"{vout_m:.2f} V / {iout_m:.2f} A")
-            self.group_val_labels["reg_32_33"].configure(text=f"{vout_s:.2f} V / {pwr_read[33]*0.01:.2f} A")
+            _safe_configure_label(self.group_val_labels["reg_28_34"], f"{err_m} / {err_s} (OK)" if err_ok else f"{err_m} / {err_s} (ERROR)")
+            _safe_configure_label(self.group_val_labels["reg_29"], f"{pwr_read[29]} ({vbus:.2f} V)")
+            _safe_configure_label(self.group_val_labels["reg_30_31"], f"{vout_m:.2f} V / {iout_m:.2f} A")
+            _safe_configure_label(self.group_val_labels["reg_32_33"], f"{vout_s:.2f} V / {pwr_read[33]*0.01:.2f} A")
 
-            self.group_val_labels["b12_1_v"].configure(text=f"{pwr_read[4]} / {pwr_read[5]} mV")
-            self.group_val_labels["b12_1_i"].configure(text=f"{pwr_read[6]} / {pwr_read[7]} mA")
-            self.group_val_labels["b12_1_t"].configure(text=f"{pwr_read[8]} / {pwr_read[9]} °C")
-            self.group_val_labels["b12_2_v"].configure(text=f"{pwr_read[10]} / {pwr_read[11]} mV")
-            self.group_val_labels["b12_2_i"].configure(text=f"{pwr_read[12]} / {pwr_read[13]} mA")
-            self.group_val_labels["b12_2_t"].configure(text=f"{pwr_read[14]} / {pwr_read[15]} °C")
+            _safe_configure_label(self.group_val_labels["b12_1_v"], f"{pwr_read[4]} / {pwr_read[5]} mV")
+            _safe_configure_label(self.group_val_labels["b12_1_i"], f"{pwr_read[6]} / {pwr_read[7]} mA")
+            _safe_configure_label(self.group_val_labels["b12_1_t"], f"{pwr_read[8]} / {pwr_read[9]} °C")
+            _safe_configure_label(self.group_val_labels["b12_2_v"], f"{pwr_read[10]} / {pwr_read[11]} mV")
+            _safe_configure_label(self.group_val_labels["b12_2_i"], f"{pwr_read[12]} / {pwr_read[13]} mA")
+            _safe_configure_label(self.group_val_labels["b12_2_t"], f"{pwr_read[14]} / {pwr_read[15]} °C")
 
-            self.group_val_labels["b5_1_v"].configure(text=f"{pwr_read[16]} / {pwr_read[17]} mV")
-            self.group_val_labels["b5_1_i"].configure(text=f"{pwr_read[18]} / {pwr_read[19]} mA")
-            self.group_val_labels["b5_1_t"].configure(text=f"{pwr_read[20]} / {pwr_read[21]} °C")
-            self.group_val_labels["b5_2_v"].configure(text=f"{pwr_read[22]} / {pwr_read[23]} mV")
-            self.group_val_labels["b5_2_i"].configure(text=f"{pwr_read[24]} / {pwr_read[25]} mA")
-            self.group_val_labels["b5_2_t"].configure(text=f"{pwr_read[26]} / {pwr_read[27]} °C")
+            _safe_configure_label(self.group_val_labels["b5_1_v"], f"{pwr_read[16]} / {pwr_read[17]} mV")
+            _safe_configure_label(self.group_val_labels["b5_1_i"], f"{pwr_read[18]} / {pwr_read[19]} mA")
+            _safe_configure_label(self.group_val_labels["b5_1_t"], f"{pwr_read[20]} / {pwr_read[21]} °C")
+            _safe_configure_label(self.group_val_labels["b5_2_v"], f"{pwr_read[22]} / {pwr_read[23]} mV")
+            _safe_configure_label(self.group_val_labels["b5_2_i"], f"{pwr_read[24]} / {pwr_read[25]} mA")
+            _safe_configure_label(self.group_val_labels["b5_2_t"], f"{pwr_read[26]} / {pwr_read[27]} °C")

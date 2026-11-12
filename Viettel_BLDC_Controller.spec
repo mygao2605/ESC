@@ -25,6 +25,7 @@ hiddenimports = [
     'gui_esc',
     'gui_bmu',
     'gui_power',
+    'gui_mld',
     'mgm_comm',
     'mgm_data',
     'serial',

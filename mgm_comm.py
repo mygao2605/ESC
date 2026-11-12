@@ -303,6 +303,24 @@ class MGMSimulator:
         # 36 Thanh ghi giám sát Module Power (Address 0..35)
         self.pwr_read_regs: List[int] = [0] * 36
 
+        # 4 Thanh ghi ghi Bộ điều khiển MLD (F=16: Set_Position, State, Sel_test, Period)
+        self.mld_set_position: int = 0
+        self.mld_state: int = 0
+        self.mld_sel_test: int = 0
+        self.mld_period_ms: int = 500
+
+        # 7 Thanh ghi đọc Bộ điều khiển MLD (F=03: State, Position, Vdc_bus, Error_code, Set_Position, Speed, Hall_Value)
+        self.mld_read_state: int = 0
+        self.mld_read_position: int = 0
+        self.mld_read_vdc_bus: int = 48
+        self.mld_read_error_code: int = 0
+        self.mld_read_set_pos: int = 0
+        self.mld_read_speed: int = 0
+        self.mld_read_hall: int = 1
+        self._mld_pos_f: float = 0.0
+        self._mld_speed_f: float = 0.0
+        self._mld_test_timer: float = 0.0
+
         # Bảng tham số cấu hình lưu trữ
         self.stored_params: Dict[int, Any] = {
             1: "memory bank 1",
@@ -527,6 +545,37 @@ class MGMSimulator:
             err_m, vbus_100, vout_m_100, iout_m_100, vout_s_100, iout_s_100, err_s, fan_s
         ]
 
+        # Mô phỏng Bộ điều khiển MLD (7 thanh ghi đọc, 4 thanh ghi ghi)
+        self._mld_test_timer += dt
+        target_pos = float(self.mld_set_position)
+        if self.mld_state == 1:
+            if self.mld_sel_test == 1:
+                step_period = max(0.5, self.mld_period_ms / 1000.0)
+                target_pos = 90.0 if (int(self._mld_test_timer / step_period) % 2 == 1) else 0.0
+            elif self.mld_sel_test == 2:
+                freq = 1.0 / max(0.5, self.mld_period_ms / 500.0)
+                target_pos = float(self.mld_set_position) + 30.0 * math.sin(2.0 * math.pi * freq * self._mld_test_timer)
+            elif self.mld_sel_test == 3:
+                target_pos = (self._mld_test_timer * 45.0) % 360.0
+
+            pos_diff = target_pos - self._mld_pos_f
+            pos_speed = max(-1500.0, min(1500.0, pos_diff * 8.0))
+            self._mld_pos_f += pos_speed * dt
+            self.mld_read_state = 1
+            self.mld_read_position = int(round(self._mld_pos_f))
+            self.mld_read_speed = int(round(pos_speed))
+            self.mld_read_vdc_bus = 48 + random.randint(-1, 1)
+            self.mld_read_error_code = 0
+            self.mld_read_set_pos = int(round(target_pos))
+            self.mld_read_hall = ((int(abs(self._mld_pos_f) / 60) % 6) + 1)
+        else:
+            self.mld_read_state = 0
+            self.mld_read_speed = 0
+            self.mld_read_vdc_bus = 48
+            self.mld_read_error_code = 0
+            self.mld_read_set_pos = self.mld_set_position
+            self.mld_read_position = int(round(self._mld_pos_f))
+
     def get_read_registers_list(self) -> List[int]:
         """Trả về mảng 11 thanh ghi đọc (0..10)"""
         self.update_physics()
@@ -558,7 +607,17 @@ class MGMSimulator:
         if fcode == 0x03:
             start_addr, count = struct.unpack(">HH", req[2:6])
             self.update_physics()
-            if count >= 30:
+            if count == 7:
+                regs = [
+                    self.mld_read_state,
+                    self.mld_read_position,
+                    self.mld_read_vdc_bus,
+                    self.mld_read_error_code,
+                    self.mld_read_set_pos,
+                    self.mld_read_speed,
+                    self.mld_read_hall
+                ]
+            elif count >= 30:
                 regs = self.pwr_read_regs
             elif count == 10:
                 regs = self.pwr_ctrl_regs
@@ -578,7 +637,12 @@ class MGMSimulator:
                 for i in range(count):
                     v = struct.unpack(">h", req[7 + i * 2: 9 + i * 2])[0]
                     vals.append(v)
-                if start_addr == 0 and len(vals) >= 2:
+                if count == 4 and start_addr == 0:
+                    self.mld_set_position = vals[0]
+                    self.mld_state = vals[1]
+                    self.mld_sel_test = vals[2]
+                    self.mld_period_ms = vals[3]
+                elif start_addr == 0 and len(vals) >= 2:
                     self.set_write_registers(vals[0], vals[1])
                 elif start_addr == 0 and len(vals) == 1:
                     self.set_write_registers(vals[0], self.cmd_speed_rpm)
@@ -631,16 +695,20 @@ class MGMConnection:
         self.device_id = 10
         self.device_name = "Viettel BLDC Driver (Modbus RTU)"
 
-        # Tab đang kích hoạt: "ESC", "BMU", "POWER"
+        # Tab đang kích hoạt: "ESC", "BMU", "POWER", "MLD"
         self.active_tab: str = "ESC"
         self.hardware_pwr_read_regs: List[int] = [0] * 36
         self.hardware_pwr_ctrl_regs: List[int] = [0] * 10
+        self.hardware_mld_read_regs: List[int] = [0] * 7
+        self.hardware_mld_write_regs: List[int] = [0, 0, 0, 500]
 
         self._poll_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._serial_lock = threading.Lock()
         self._pending_write: Optional[Tuple[int, int]] = None
         self._pending_power_write: Optional[Tuple[int, List[int]]] = None
+        self._pending_mld_write: Optional[List[int]] = None
+        self.mld_cyclic_write_enabled: bool = False
 
         # Callbacks
         self.on_telemetry_callback: Optional[Callable[[Dict[str, Any]], None]] = None
@@ -727,10 +795,17 @@ class MGMConnection:
             self.on_status_change(False, "Chưa kết nối (Disconnected)")
 
     def set_active_tab(self, tab: str):
-        """Chuyển đổi cấu hình đọc Modbus theo tab đang xem (ESC hoặc POWER)"""
+        """Chuyển đổi cấu hình đọc Modbus theo tab đang xem (ESC, BMU, POWER hoặc MLD)"""
         tab_upper = tab.upper()
-        self.active_tab = "POWER" if "POWER" in tab_upper else ("BMU" if "BMU" in tab_upper else "ESC")
-        if self.active_tab == "POWER":
+        if "MLD" in tab_upper:
+            self.active_tab = "MLD"
+            self.read_count = 7
+            self.read_start_addr = 0
+            self.write_count = 4
+            self.write_start_addr = 0
+            self.log("Đã chuyển cấu hình Modbus sang Module MLD (Read 7 Regs, Write 4 Regs)", "INFO")
+        elif "POWER" in tab_upper:
+            self.active_tab = "POWER"
             # Mặc định đọc 10 thanh ghi Phase-Shift (0..9) theo yêu cầu, hoặc 36 thanh ghi
             if not hasattr(self, 'power_read_count') or self.power_read_count not in (10, 36):
                 self.power_read_count = 10
@@ -739,7 +814,15 @@ class MGMConnection:
             self.write_count = 1
             self.write_start_addr = 0
             self.log(f"Đã chuyển cấu hình Modbus sang Module POWER (Read {self.read_count} Regs, Set State Addr 0)", "INFO")
-        elif self.active_tab == "ESC":
+        elif "BMU" in tab_upper:
+            self.active_tab = "BMU"
+            self.read_count = 11
+            self.read_start_addr = 0
+            self.write_count = 2
+            self.write_start_addr = 0
+            self.log("Đã chuyển cấu hình Modbus sang Module BMU (Read 11 Regs)", "INFO")
+        else:
+            self.active_tab = "ESC"
             self.read_count = 11
             self.read_start_addr = 0
             self.write_count = 2
@@ -770,6 +853,56 @@ class MGMConnection:
             return True
         return False
 
+    def write_mld_command(self, set_pos: int, state: int, sel_test: int, period_ms: int, immediate: bool = True) -> bool:
+        """Ghi 4 thanh ghi điều khiển MLD qua Modbus Function 16"""
+        vals = [to_int16(set_pos), 1 if int(state) != 0 else 0, to_int16(sel_test), max(10, min(65535, int(period_ms)))]
+        self.hardware_mld_write_regs = list(vals)
+        if immediate and self.is_connected:
+            self._pending_mld_write = vals
+            self.log(f"MLD: Lệnh ghi F=16: Set_Pos={vals[0]}, State={vals[1]}, Sel_test={vals[2]}, Period={vals[3]}ms", "INFO")
+            return True
+        return False
+
+    def set_mld_cyclic_write(self, enabled: bool):
+        """Bật/tắt chế độ gửi chu kỳ cho MLD (F=16)"""
+        self.mld_cyclic_write_enabled = enabled
+        self.log(f"MLD: {'BẬT' if enabled else 'TẮT'} chế độ Ghi chu kỳ (Cyclic Write F=16)", "INFO")
+
+    def _execute_mld_fc16_write(self, vals: List[int]) -> bool:
+        """Thực thi ghi 4 thanh ghi MLD bằng Function 16"""
+        req = build_fc16_request(self.slave_id, 0, vals)
+        self.write_tx_count += 1
+        self.last_write_tx_hex = req.hex(" ").upper()
+
+        if self.is_simulator:
+            resp = self.simulator.handle_raw_modbus(req, slave_id=self.slave_id)
+            if resp:
+                self.last_write_rx_hex = resp.hex(" ").upper()
+                if parse_fc16_response(resp, self.slave_id, 0, len(vals)):
+                    return True
+            self.write_err_count += 1
+            return False
+
+        with self._serial_lock:
+            if not self.serial_port or not self.serial_port.is_open:
+                self.write_err_count += 1
+                return False
+            try:
+                self.serial_port.reset_input_buffer()
+                self.serial_port.write(req)
+                resp = self.serial_port.read(8)
+                if resp:
+                    self.last_write_rx_hex = resp.hex(" ").upper()
+                if parse_fc16_response(resp, self.slave_id, 0, len(vals)):
+                    return True
+                else:
+                    self.write_err_count += 1
+                    return False
+            except Exception as e:
+                self.write_err_count += 1
+                self.log(f"MLD: Lỗi ngoại lệ khi ghi Modbus F=16: {e}", "ERROR")
+                return False
+
     def _start_poll_worker(self):
         self._stop_event.clear()
         self._poll_thread = threading.Thread(target=self._modbus_poll_loop, daemon=True)
@@ -780,24 +913,32 @@ class MGMConnection:
         while not self._stop_event.is_set():
             cycle_start = time.time()
             try:
-                # 1. Nếu có lệnh ghi Power tức thời (F=16)
-                if self._pending_power_write is not None:
+                # 1. Nếu có lệnh ghi MLD (F=16) hoặc chế độ Cyclic Write của MLD đang bật
+                if self._pending_mld_write is not None:
+                    m_vals = self._pending_mld_write
+                    self._pending_mld_write = None
+                    self._execute_mld_fc16_write(m_vals)
+                elif self.mld_cyclic_write_enabled and self.active_tab == "MLD":
+                    self._execute_mld_fc16_write(self.hardware_mld_write_regs)
+
+                # 2. Nếu có lệnh ghi Power tức thời (F=16)
+                elif self._pending_power_write is not None:
                     p_addr, p_vals = self._pending_power_write
                     self._pending_power_write = None
                     self._execute_power_fc16_write(p_addr, p_vals)
 
-                # 2. Nếu có lệnh ghi ESC tức thời hoặc chế độ Cyclic Write (F=16) đang bật
+                # 3. Nếu có lệnh ghi ESC tức thời hoặc chế độ Cyclic Write (F=16) đang bật
                 elif self._pending_write is not None:
                     on_v, rpm_v = self._pending_write
                     self._pending_write = None
                     self._execute_fc16_write(on_v, rpm_v)
-                elif self.cyclic_write_enabled and self.active_tab != "POWER":
+                elif self.cyclic_write_enabled and self.active_tab == "ESC":
                     self._execute_fc16_write(self.current_write_regs[0], self.current_write_regs[1])
 
-                # 3. Thực hiện đọc thanh ghi bằng Function 03 (Read Holding Registers)
+                # 4. Thực hiện đọc thanh ghi bằng Function 03 (Read Holding Registers)
                 self._execute_fc03_read()
 
-                # 4. Đóng gói snapshot gửi lên GUI
+                # 5. Đóng gói snapshot gửi lên GUI
                 snapshot = self._build_snapshot()
                 if self.on_telemetry_callback:
                     self.on_telemetry_callback(snapshot)
@@ -852,6 +993,8 @@ class MGMConnection:
                             self.hardware_pwr_ctrl_regs = list(regs[:10])
                         else:
                             self.hardware_pwr_read_regs = list(regs)
+                    elif self.active_tab == "MLD":
+                        self.hardware_mld_read_regs = list(regs[:7])
                     return True
                 else:
                     self.read_err_count += 1
@@ -1055,6 +1198,30 @@ class MGMConnection:
             "pwr_state": self.hardware_pwr_ctrl_regs[0] if not self.is_simulator else self.simulator.pwr_ctrl_regs[0],
             "pwr_ctrl_regs": list(self.hardware_pwr_ctrl_regs) if not self.is_simulator else list(self.simulator.pwr_ctrl_regs),
             "pwr_read_regs": list(self.hardware_pwr_read_regs) if not self.is_simulator else list(self.simulator.pwr_read_regs),
+
+            # BẢNG DỮ LIỆU ĐẶC TẢ BỘ ĐIỀU KHIỂN MLD (7 READ REGS + 4 WRITE REGS)
+            "mld_read_regs": list(self.hardware_mld_read_regs) if not self.is_simulator else [
+                self.simulator.mld_read_state,
+                self.simulator.mld_read_position,
+                self.simulator.mld_read_vdc_bus,
+                self.simulator.mld_read_error_code,
+                self.simulator.mld_read_set_pos,
+                self.simulator.mld_read_speed,
+                self.simulator.mld_read_hall
+            ],
+            "mld_write_regs": list(self.hardware_mld_write_regs) if not self.is_simulator else [
+                self.simulator.mld_set_position,
+                self.simulator.mld_state,
+                self.simulator.mld_sel_test,
+                self.simulator.mld_period_ms
+            ],
+            "mld_state": self.simulator.mld_read_state if self.is_simulator else (self.hardware_mld_read_regs[0] if len(self.hardware_mld_read_regs) > 0 else 0),
+            "mld_position": self.simulator.mld_read_position if self.is_simulator else (self.hardware_mld_read_regs[1] if len(self.hardware_mld_read_regs) > 1 else 0),
+            "mld_vdc_bus": self.simulator.mld_read_vdc_bus if self.is_simulator else (self.hardware_mld_read_regs[2] if len(self.hardware_mld_read_regs) > 2 else 0),
+            "mld_error_code": self.simulator.mld_read_error_code if self.is_simulator else (self.hardware_mld_read_regs[3] if len(self.hardware_mld_read_regs) > 3 else 0),
+            "mld_set_position": self.simulator.mld_read_set_pos if self.is_simulator else (self.hardware_mld_read_regs[4] if len(self.hardware_mld_read_regs) > 4 else 0),
+            "mld_speed": self.simulator.mld_read_speed if self.is_simulator else (self.hardware_mld_read_regs[5] if len(self.hardware_mld_read_regs) > 5 else 0),
+            "mld_hall_value": self.simulator.mld_read_hall if self.is_simulator else (self.hardware_mld_read_regs[6] if len(self.hardware_mld_read_regs) > 6 else 0),
         }
 
     def set_power_state(self, state: int):
